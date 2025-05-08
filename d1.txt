@@ -1,0 +1,87 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+
+-- Настроим позиции бассейна и причала
+local poolPos = Vector3.new(-282.2398681640625, 93.07760620117188, 52.152713775634766) -- ВСТАВЬ СЮДА КООРДИНАТЫ ВНУТРИ БАССЕЙНА
+local dockPos = Vector3.new(-281.01837158293125, 93.07760620117188, 32.56906509399414) -- ВСТАВЬ СЮДА КООРДИНАТЫ ПРИЧАЛА
+
+-- Найдём инструмент
+local function getPickupTool()
+    for _, tool in ipairs(char:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name == "Pick Up Duck" then
+            return tool
+        end
+    end
+    return nil
+end
+
+-- Найдём первую утку поблизости
+local function findDuck()
+    for _, folder in ipairs(workspace:GetChildren()) do
+        if folder.Name:find("_Eggs") then
+            for _, obj in ipairs(folder:GetChildren()) do
+                if obj:IsA("Model") and obj.Name == "Classic Duck" and obj:FindFirstChild("HumanoidRootPart") then
+                    return obj
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- Телепортировать утку на причал
+local function moveDuckToDock(duck)
+    if duck and duck:FindFirstChild("HumanoidRootPart") then
+        duck.HumanoidRootPart.CFrame = CFrame.new(dockPos)
+    end
+end
+
+-- Основной цикл
+while task.wait(1) do
+    local tool = getPickupTool()
+    if not tool then
+        warn("Нет инструмента Pick Up Duck в руках!")
+        break
+    end
+
+    local duck = findDuck()
+    if not duck then
+        warn("Нет подходящих уток")
+        break
+    end
+
+    -- "Взять" утку: симулируем цель
+    local target = tool:FindFirstChild("target")
+    if target then
+        target.Value = duck
+        tool:Activate()
+        wait(1)
+    end
+
+    -- Перемещаемся в бассейн
+    hrp.CFrame = CFrame.new(poolPos)
+    wait(0.5)
+
+    -- Кликаем Drop
+    local dropButton = nil
+    for _, gui in ipairs(player.PlayerGui:GetDescendants()) do
+        if gui:IsA("ImageButton") and gui.Name:lower():find("drop") then
+            dropButton = gui
+            break
+        end
+    end
+
+    if dropButton then
+        firesignal(dropButton.MouseButton1Click)
+        wait(0.5)
+    else
+        warn("Кнопка Drop не найдена!")
+        break
+    end
+
+    -- Ждём пока утка появится и телепортируем её на причал
+    wait(1)
+    moveDuckToDock(duck)
+end
