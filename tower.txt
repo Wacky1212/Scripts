@@ -1,0 +1,30 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Towers = LocalPlayer:WaitForChild("Towers")
+
+local unitName = "Survivalist"
+local originalValue = Towers.Value
+
+-- Сначала добавляем Survivalist в трейд
+ReplicatedStorage.Remotes.AddOffer:FireServer(unitName)
+
+-- Затем визуально убираем его из инвентаря (но не продаём)
+task.wait(0.2) -- даём немного времени на добавление в трейд
+local towerList = string.split(Towers.Value, ",")
+for i, v in ipairs(towerList) do
+	if v == unitName then
+		table.remove(towerList, i)
+		break
+	end
+end
+Towers.Value = table.concat(towerList, ",")
+
+-- Ждём завершения трейда и возвращаем Survivalist обратно
+ReplicatedStorage.Remotes.TradeUpdate.OnClientEvent:Connect(function(...)
+	local args = {...}
+	if args[1] == "TradeCompleted" then
+		print("✅ Трейд завершён. Возвращаем Survivalist.")
+		Towers.Value = Towers.Value .. "," .. unitName
+	end
+end)
