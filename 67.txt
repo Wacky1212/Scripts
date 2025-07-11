@@ -1,3 +1,4 @@
+
 -- 🔁 ЦИКЛИЧНЫЙ СКРИПТ: ставит и апгрейдит юниты, затем ждёт кнопку Play Again и перезапускает всё
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -50,10 +51,10 @@ end
 
 -- ⬆️ Апгрейд юнита по шагам
 local function upgradeAtCash(unitId, upgradeSteps)
-    for i, target in ipairs(upgradeSteps) do
-        waitForCash(target)
+    for _, cost in ipairs(upgradeSteps) do
+        waitForCash(cost)
         ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
-        print("⬆️ Апгрейд отправлен:", unitId, "за", target)
+        print("⬆️ Апгрейд отправлен:", unitId, "за", cost)
     end
 end
 
@@ -112,22 +113,33 @@ local function runMatch()
     local id3 = placeUnitAndGetId("unit_farmer_npc", Vector3.new(-338.30, 63.38, -83.23))
     if id3 then upgradeAtCash(id3, {250, 350, 500}) end
 
-    -- 4: ставим beehive (БЕЗ апгрейда!)
+    -- 4: ставим beehive (БЕЗ апгрейда)
     waitForCash(2500)
-    local id4 = placeUnitAndGetId("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
+    placeUnitAndGetId("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
 
-    -- 5: ставим и МАКСИМАЛЬНО апгрейдим beehive
+    -- 5 и 6: beehive с полным апгрейдом
     waitForCash(2500)
     local id5 = placeUnitAndGetId("unit_beehive", Vector3.new(-323.65, 63.46, -98.40))
     if id5 then upgradeAtCash(id5, {1500, 4000, 10000, 25000}) end
 
-    -- возвращаемся к 4-му и апгрейдим его
-    if id4 then upgradeAtCash(id4, {1500, 4000, 10000, 25000}) end
-
-    -- 6: ставим и апгрейдим beehive
     waitForCash(2500)
     local id6 = placeUnitAndGetId("unit_beehive", Vector3.new(-324.86, 63.46, -91.45))
     if id6 then upgradeAtCash(id6, {1500, 4000, 10000, 25000}) end
+
+    -- 7-9: unit_pulse_plant с установкой и апгрейдом
+    local pulseSteps = {3000, 7500, 10000, 25000}
+
+    waitForCash(5000)
+    local id7 = placeUnitAndGetId("unit_pulse_plant", Vector3.new(-325.80, 63.94, -78.21))
+    if id7 then upgradeAtCash(id7, pulseSteps) end
+
+    waitForCash(5000)
+    local id8 = placeUnitAndGetId("unit_pulse_plant", Vector3.new(-328.13, 63.94, -85.03))
+    if id8 then upgradeAtCash(id8, pulseSteps) end
+
+    waitForCash(5000)
+    local id9 = placeUnitAndGetId("unit_pulse_plant", Vector3.new(-340.26, 63.94, -88.00))
+    if id9 then upgradeAtCash(id9, pulseSteps) end
 end
 
 -- 🔁 Ожидание появления кнопки Play Again и рестарт
