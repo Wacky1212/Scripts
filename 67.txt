@@ -1,10 +1,12 @@
+-- 🔁 ЦИКЛИЧНЫЙ СКРИПТ: ставит и апгрейдит юниты, затем ждёт кнопку Play Again и перезапускает всё
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 local cash = player:WaitForChild("leaderstats"):WaitForChild("Cash")
 
--- 💰 Перевод строки Cash в число
+-- 🔧 Конвертация строки в число
 local function parseCash(val)
     val = tostring(val or "0"):gsub(",", "")
     if val:lower():find("k") then
@@ -14,12 +16,12 @@ local function parseCash(val)
     return tonumber(val)
 end
 
--- ⏳ Ждать нужную сумму
+-- 💰 Ожидание нужного баланса
 local function waitForCash(amount)
     repeat wait(0.2) until parseCash(cash.Value) >= amount
 end
 
--- 📦 Установка юнита и получение ID
+-- 📦 Установка юнита
 local function placeUnitAndGetId(unitName, position)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
@@ -36,17 +38,26 @@ local function placeUnitAndGetId(unitName, position)
         wait(0.1)
         for _, v in pairs(entityFolder:GetChildren()) do
             if not before[v] and v:IsA("Model") and v:GetAttribute("ID") then
-                print("✅ Юнит поставлен:", unitName)
+                print("✅ Поставлен:", unitName)
                 return v:GetAttribute("ID")
             end
         end
     end
 
-    warn("❌ Не удалось найти юнит:", unitName)
+    warn("❌ Не найден:", unitName)
     return nil
 end
 
--- ▶️ Одна катка
+-- ⬆️ Апгрейд юнита по шагам
+local function upgradeAtCash(unitId, upgradeSteps)
+    for i, target in ipairs(upgradeSteps) do
+        waitForCash(target)
+        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
+        print("⬆️ Апгрейд отправлен:", unitId, "за", target)
+    end
+end
+
+-- 🔁 Цикл одиночной катки
 local function runMatch()
     wait(1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
@@ -54,92 +65,76 @@ local function runMatch()
     ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_insane")
     wait(1)
 
-    -- === 1–3: unit_farmer_npc
+    -- 1-3: unit_farmer_npc
     waitForCash(200)
     local id1 = placeUnitAndGetId("unit_farmer_npc", Vector3.new(-332.14, 63.38, -77.40))
-    if id1 then
-        waitForCash(250) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id1)
-        waitForCash(350) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id1)
-        waitForCash(500) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id1)
-    end
+    if id1 then upgradeAtCash(id1, {250, 350, 500}) end
 
     waitForCash(200)
     local id2 = placeUnitAndGetId("unit_farmer_npc", Vector3.new(-338.47, 63.38, -77.79))
-    if id2 then
-        waitForCash(250) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id2)
-        waitForCash(350) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id2)
-        waitForCash(500) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id2)
-    end
+    if id2 then upgradeAtCash(id2, {250, 350, 500}) end
 
     waitForCash(200)
     local id3 = placeUnitAndGetId("unit_farmer_npc", Vector3.new(-338.30, 63.38, -83.23))
-    if id3 then
-        waitForCash(250) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id3)
-        waitForCash(350) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id3)
-        waitForCash(500) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id3)
-    end
+    if id3 then upgradeAtCash(id3, {250, 350, 500}) end
 
-    -- === 4: unit_beehive — 7 попыток первого апгрейда
+    -- 4: beehive с тройным первым апгрейдом
     waitForCash(2500)
     local id4 = placeUnitAndGetId("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
     if id4 then
-        waitForCash(1500)
-        for i = 1, 7 do
-            ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
-            print("⬆️ Попытка", i, "апгрейда unit_beehive до уровня 1")
-            wait(1)
-        end
-        waitForCash(4000) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
-        waitForCash(10000) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
-        waitForCash(25000) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
+        waitForCash(1500) wait(0.5)
+        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
+        print("⬆️ [1/3] Первый апгрейд beehive")
+        wait(2)
+        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
+        print("⬆️ [2/3] Повтор первого апгрейда beehive")
+        wait(2)
+        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
+        print("⬆️ [3/3] Ещё один повтор первого апгрейда beehive")
+
+        waitForCash(4000)
+        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
+        waitForCash(10000)
+        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
+        waitForCash(25000)
+        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
     end
 
-    -- === 5: unit_beehive
+    -- 5-6: beehive
     waitForCash(2500)
     local id5 = placeUnitAndGetId("unit_beehive", Vector3.new(-323.65, 63.46, -98.40))
-    if id5 then
-        waitForCash(1500) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id5)
-        waitForCash(4000) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id5)
-        waitForCash(10000) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id5)
-        waitForCash(25000) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id5)
-    end
+    if id5 then upgradeAtCash(id5, {1500, 4000, 10000, 25000}) end
 
-    -- === 6: unit_beehive
     waitForCash(2500)
     local id6 = placeUnitAndGetId("unit_beehive", Vector3.new(-324.86, 63.46, -91.45))
-    if id6 then
-        waitForCash(1500) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id6)
-        waitForCash(4000) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id6)
-        waitForCash(10000) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id6)
-        waitForCash(25000) ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id6)
-    end
+    if id6 then upgradeAtCash(id6, {1500, 4000, 10000, 25000}) end
 end
 
--- 🔁 Ждать кнопку "Play Again" и нажать
+-- 🔁 Ожидание появления кнопки Play Again и рестарт
 local function waitForPlayAgainButton()
-    print("🔄 Ожидание кнопки Play Again...")
+    print("🔄 Ждём кнопку Play Again...")
     local gui = player:WaitForChild("PlayerGui")
     while true do
         wait(0.5)
         local btn = gui:FindFirstChild("GameGui")
-            and gui.GameGui:FindFirstChild("Screen")
-            and gui.GameGui.Screen:FindFirstChild("Middle")
-            and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
-            and gui.GameGui.Screen.Middle.GameEnd:FindFirstChild("Items")
-            and gui.GameGui.Screen.Middle.GameEnd.Items:FindFirstChild("Frame")
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame:FindFirstChild("Actions")
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions:FindFirstChild("Items")
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
+        and gui.GameGui:FindFirstChild("Screen")
+        and gui.GameGui.Screen:FindFirstChild("Middle")
+        and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
+        and gui.GameGui.Screen.Middle.GameEnd:FindFirstChild("Items")
+        and gui.GameGui.Screen.Middle.GameEnd.Items:FindFirstChild("Frame")
+        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame:FindFirstChild("Actions")
+        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions:FindFirstChild("Items")
+        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
 
         if btn and btn.Visible then
-            print("✅ Кнопка 'Play Again' найдена — рестарт...")
+            print("✅ Play Again кнопка найдена — рестарт...")
             ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
             break
         end
     end
 end
 
--- 🔁 Цикл бесконечных матчей
+-- 🚀 ЗАПУСК ЦИКЛА
 while true do
     runMatch()
     waitForPlayAgainButton()
