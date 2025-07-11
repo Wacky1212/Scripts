@@ -121,6 +121,7 @@ end)
 
 -- 🔁 Катка
 local function runMatch()
+    print('🚀 Запуск новой катки runMatch()...')
     wait(1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
     autoVoteDifficulty("Insane")
@@ -189,5 +190,7 @@ end
 
 -- 🚀 Главный ЦИКЛ
 while true do
+    restarting = false
+
     runMatch()
 end
