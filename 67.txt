@@ -53,7 +53,7 @@ end
 local function getAllBeehiveIds()
     local ids = {}
     for _, unit in pairs(entityFolder:GetChildren()) do
-        if unit:IsA("Model") and unit.Name == "unit_beehive" then
+        if unit:IsA("Model") and unit.Name == "unit_beehive" and unit.Name:find("unit_") then
             local id = unit:GetAttribute("ID")
             if id then table.insert(ids, id) end
         end
@@ -127,7 +127,7 @@ local function runMatch()
 
     -- 4: ставим и сразу пробуем апгрейдить
     waitForCash(2500)
-    local id4 = placeUnitAndGetId("unit_beehive", Vector3.new(-347.60, 63.46, -102.61))
+    local id4 = placeUnitAndGetId("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
     local beforeIds = getAllBeehiveIds()
 
     if id4 then
