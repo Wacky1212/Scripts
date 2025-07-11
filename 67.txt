@@ -127,7 +127,7 @@ local function runMatch()
 
     -- 4: ставим и сразу пробуем апгрейдить
     waitForCash(2500)
-    local id4 = placeUnitAndGetId("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
+    local id4 = placeUnitAndGetId("unit_beehive", Vector3.new(-347.60, 63.46, -102.61))
     local beforeIds = getAllBeehiveIds()
 
     if id4 then
