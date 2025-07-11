@@ -49,26 +49,16 @@ local function placeUnitAndGetId(unitName, position)
     return nil
 end
 
--- 🔄 Найти юнит по имени и ближайшей позиции (точный матч)
-local function findUnitByNameAndPosition(name, targetPos)
-    local closestUnit = nil
-    local closestDist = 2 -- только если очень близко!
+-- 🔄 Получить все ID существующих beehive юнитов
+local function getAllBeehiveIds()
+    local ids = {}
     for _, unit in pairs(entityFolder:GetChildren()) do
-        if unit:IsA("Model") and unit.Name == name and unit:FindFirstChild("HumanoidRootPart") then
-            local dist = (unit.HumanoidRootPart.Position - targetPos).Magnitude
-            if dist < closestDist then
-                closestDist = dist
-                closestUnit = unit
-            end
+        if unit:IsA("Model") and unit.Name == "unit_beehive" then
+            local id = unit:GetAttribute("ID")
+            if id then table.insert(ids, id) end
         end
     end
-    if closestUnit then
-        local id = closestUnit:GetAttribute("ID")
-        print("🔁 Переопределили ID:", id)
-        return id
-    end
-    warn("❌ Не удалось найти юнита по позиции:", name)
-    return nil
+    return ids
 end
 
 -- ⬆️ Апгрейд юнита по шагам
@@ -135,20 +125,43 @@ local function runMatch()
     local id3 = placeUnitAndGetId("unit_farmer_npc", Vector3.new(-338.30, 63.38, -83.23))
     if id3 then upgradeAtCash(id3, {250, 350, 500}) end
 
-    -- 4: ставим beehive (БЕЗ апгрейда!)
+    -- 4: ставим и сразу пробуем апгрейдить
     waitForCash(2500)
-    placeUnitAndGetId("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
+    local id4 = placeUnitAndGetId("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
+    local beforeIds = getAllBeehiveIds()
 
-    -- 5: ставим и МАКСИМАЛЬНО апгрейдим beehive
+    if id4 then
+        waitForCash(1500)
+        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
+        print("⬆️ Попытка первого апгрейда:", id4)
+        wait(1)
+
+        local afterIds = getAllBeehiveIds()
+        local foundOtherId = nil
+        for _, id in ipairs(afterIds) do
+            local isNew = true
+            for _, old in ipairs(beforeIds) do
+                if old == id then isNew = false break end
+            end
+            if isNew then
+                foundOtherId = id
+                break
+            end
+        end
+
+        local finalId = foundOtherId or id4
+        if finalId ~= id4 then
+            print("⚠️ Используем другой ID:", finalId)
+        end
+
+        upgradeAtCash(finalId, {4000, 10000, 25000})
+    end
+
+    -- 5 и 6: обычная установка и апгрейд
     waitForCash(2500)
     local id5 = placeUnitAndGetId("unit_beehive", Vector3.new(-323.65, 63.46, -98.40))
     if id5 then upgradeAtCash(id5, {1500, 4000, 10000, 25000}) end
 
-    -- возвращаемся к 4-му и переопределяем его ID по позиции
-    local id4_fixed = findUnitByNameAndPosition("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
-    if id4_fixed then upgradeAtCash(id4_fixed, {1500, 4000, 10000, 25000}) end
-
-    -- 6: ставим и апгрейдим beehive
     waitForCash(2500)
     local id6 = placeUnitAndGetId("unit_beehive", Vector3.new(-324.86, 63.46, -91.45))
     if id6 then upgradeAtCash(id6, {1500, 4000, 10000, 25000}) end
