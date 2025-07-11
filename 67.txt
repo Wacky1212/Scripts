@@ -97,6 +97,28 @@ local function autoVoteDifficulty(mode)
 end
 
 -- 🔁 Проверка на Play Again в любой момент
+local function checkAndRestartIfPlayAgainVisible()
+    local gui = player:WaitForChild("PlayerGui")
+    local btn = gui:FindFirstChild("GameGui")
+    and gui.GameGui:FindFirstChild("Screen")
+    and gui.GameGui.Screen:FindFirstChild("Middle")
+    and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
+    and gui.GameGui.Screen.Middle.GameEnd:FindFirstChild("Items")
+    and gui.GameGui.Screen.Middle.GameEnd.Items:FindFirstChild("Frame")
+    and gui.GameGui.Screen.Middle.GameEnd.Items.Frame:FindFirstChild("Actions")
+    and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions:FindFirstChild("Items")
+    and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
+
+    if btn and btn.Visible then
+        print("⚠️ [Старт] Уже видна кнопка Play Again — нажимаем рестарт.")
+        restarting = true
+        ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
+    end
+end
+
+checkAndRestartIfPlayAgainVisible()
+
+
 task.spawn(function()
     local gui = player:WaitForChild("PlayerGui")
     while true do
