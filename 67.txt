@@ -184,60 +184,19 @@ local function runMatch()
 
     waitForCash(5000)
     if restarting then return end
-    local id9 = placeUnitAndGetId("unit_pulse_plant", Vector3.new(-340.26, 63.94, -88.00))
-    if id9 then upgradeAtCash(id9, pulseSteps) end
-end
-
--- 🚀 Главный ЦИКЛ
-while true do
-    restarting = false
-
-    runMatch()
-end
-    -- 7-9: unit_pulse_plant с установкой и апгрейдом
-    local pulseSteps = {3000, 7500, 10000, 25000}
-
-    waitForCash(5000)
-    if restarting then return end
-    local id7 = placeUnitAndGetId("unit_pulse_plant", Vector3.new(-325.80, 63.94, -78.21))
-    if id7 then upgradeAtCash(id7, pulseSteps) end
-    if restarting then return end
-
-    waitForCash(5000)
-    if restarting then return end
-    local id8 = placeUnitAndGetId("unit_pulse_plant", Vector3.new(-328.13, 63.94, -85.03))
-    if id8 then upgradeAtCash(id8, pulseSteps) end
-    if restarting then return end
-
     waitForCash(5000)
     if restarting then return end
     local id9 = placeUnitAndGetId("unit_pulse_plant", Vector3.new(-340.26, 63.94, -88.00))
     if id9 then upgradeAtCash(id9, pulseSteps) end
     if restarting then return end
 
-    -- 🕒 ОЖИДАЕМ появления кнопки рестарта после победы
-    print("🏁 Все юниты апгрейднуты — ждём окончания катки...")
-    while true do
-        wait(1)
-        local gui = player:WaitForChild("PlayerGui")
-        local btn = gui:FindFirstChild("GameGui")
-        and gui.GameGui:FindFirstChild("Screen")
-        and gui.GameGui.Screen:FindFirstChild("Middle")
-        and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
-        and gui.GameGui.Screen.Middle.GameEnd:FindFirstChild("Items")
-        and gui.GameGui.Screen.Middle.GameEnd.Items:FindFirstChild("Frame")
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame:FindFirstChild("Actions")
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions:FindFirstChild("Items")
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
+    -- ⏳ ЖДЁМ, пока не произойдёт нажатие "рестарт"
+    print("🏁 Все юниты апгрейднуты. Ожидаем рестарт...")
+    repeat wait(0.5) until restarting == true
 
-        if btn and btn.Visible then
-            print("✅ Кнопка Play Again видна — запускаем рестарт...")
-            restarting = true
-            ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-            break
-        end
-    end
-
+    local id9 = placeUnitAndGetId("unit_pulse_plant", Vector3.new(-340.26, 63.94, -88.00))
+    if id9 then upgradeAtCash(id9, pulseSteps) end
+end
 
 -- 🚀 Главный ЦИКЛ
 while true do
