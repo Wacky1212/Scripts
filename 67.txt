@@ -1,3 +1,4 @@
+-- 🔁 АВТОФАРМ: Ставит, апгрейдит, рестартит
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -5,24 +6,24 @@ local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 local cash = player:WaitForChild("leaderstats"):WaitForChild("Cash")
 
 local restarting = false
-local restartRequested = false
 
--- 💸 Чтение числа из строки (cash)
+-- 🔧 Конвертация строки денег
 local function parseCash(val)
     if not val then return 0 end
     val = tostring(val):gsub(",", "")
     if val:lower():find("k") then
-        return tonumber(val:lower():gsub("k", "")) * 1000
+        local num = tonumber(val:lower():gsub("k", ""))
+        return (num or 0) * 1000
     end
     return tonumber(val) or 0
 end
 
--- ⏳ Ждать нужное количество денег
+-- 💰 Ожидаем нужное количество денег или рестарт
 local function waitForCash(amount)
     repeat wait(0.2) until parseCash(cash.Value) >= amount or restarting
 end
 
--- 🧱 Поставить юнит и вернуть ID
+-- 📦 Установка юнита и получение его ID
 local function placeUnitAndGetId(unitName, position)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
@@ -39,122 +40,110 @@ local function placeUnitAndGetId(unitName, position)
         wait(0.1)
         for _, v in pairs(entityFolder:GetChildren()) do
             if not before[v] and v:IsA("Model") and v:GetAttribute("ID") then
-                print("✅ Поставлен:", unitName)
                 return v:GetAttribute("ID")
             end
         end
     end
-
-    warn("❌ Не найден:", unitName)
     return nil
 end
 
--- ⬆️ Апгрейд юнита
-local function upgradeAtCash(unitId, steps)
-    for _, cost in ipairs(steps) do
+-- ⬆️ Апгрейд юнита по указанным значениям
+local function upgradeAtCash(unitId, upgradeSteps)
+    for _, cost in ipairs(upgradeSteps) do
         waitForCash(cost)
         if restarting then return end
         ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
-        print("⬆️ Апгрейд:", unitId, "за", cost)
     end
 end
 
--- 🎯 Выбор сложности
+-- 🧠 Автовыбор сложности
 local function autoVoteDifficulty(mode)
-    local diff = {
-        Easy = "dif_easy",
-        Normal = "dif_normal",
-        Hard = "dif_hard",
-        Insane = "dif_insane",
-        Impossible = "dif_impossible"
-    }[mode or "Insane"] or "dif_insane"
-
+    local difficultyMap = {
+        ["Easy"] = "dif_easy",
+        ["Normal"] = "dif_normal",
+        ["Hard"] = "dif_hard",
+        ["Insane"] = "dif_insane",
+        ["Impossible"] = "dif_impossible"
+    }
+    local arg = difficultyMap[mode or "Insane"] or "dif_insane"
     local gui = player:WaitForChild("PlayerGui")
-    local voteUI = gui:WaitForChild("GameGui"):WaitForChild("Screen")
-        :WaitForChild("Middle"):WaitForChild("DifficultyVote")
 
     task.spawn(function()
         while true do
             wait(0.2)
-            if voteUI.Visible then
-                print("🎯 Голосуем:", diff)
-                pcall(function()
-                    ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer(diff)
-                end)
+            local voteUI = gui:FindFirstChild("GameGui")
+                and gui.GameGui:FindFirstChild("Screen")
+                and gui.GameGui.Screen:FindFirstChild("Middle")
+                and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
+            if voteUI and voteUI.Visible then
+                ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer(arg)
                 break
             end
         end
     end)
 end
 
--- 🛑 Ожидание кнопки Play Again
-local function waitForPlayAgain()
+-- 🔁 Наблюдение за кнопкой Play Again
+task.spawn(function()
     local gui = player:WaitForChild("PlayerGui")
-    local btn
-    repeat
+    while true do
         wait(1)
-        btn = gui:FindFirstChild("GameGui")
+        local btn = gui:FindFirstChild("GameGui")
+            and gui.GameGui:FindFirstChild("Screen")
+            and gui.GameGui.Screen:FindFirstChild("Middle")
+            and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
+            and gui.GameGui.Screen.Middle.GameEnd:FindFirstChild("Items")
+            and gui.GameGui.Screen.Middle.GameEnd.Items:FindFirstChild("Frame")
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame:FindFirstChild("Actions")
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions:FindFirstChild("Items")
             and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
-    until btn and btn.Visible
-    print("🔁 Кнопка рестарта найдена")
-    restartRequested = true
-    ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-end
 
--- ⚔️ Запуск одной катки
+        if btn and btn.Visible then
+            restarting = true
+            ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
+        end
+    end
+end)
+
+-- 🔄 Один цикл катки
 local function runMatch()
-    print("🚀 Начало катки...")
-    restartRequested = false
+    wait(1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
     autoVoteDifficulty("Insane")
     wait(1)
+    restarting = false
 
-    -- 1-3 Фермеры
-    waitForCash(200)
-    local id1 = placeUnitAndGetId("unit_farmer_npc", Vector3.new(-332.14, 63.38, -77.40))
-    if id1 then upgradeAtCash(id1, {250, 350, 500}) end
+    local function safePlaceAndUpgrade(name, pos, upgrades)
+        waitForCash(upgrades[1] or 1000)
+        if restarting then return end
+        local id = placeUnitAndGetId(name, pos)
+        if id then upgradeAtCash(id, upgrades) end
+    end
 
-    waitForCash(200)
-    local id2 = placeUnitAndGetId("unit_farmer_npc", Vector3.new(-338.47, 63.38, -77.79))
-    if id2 then upgradeAtCash(id2, {250, 350, 500}) end
+    -- 1–3: фермеры
+    safePlaceAndUpgrade("unit_farmer_npc", Vector3.new(-332.14, 63.38, -77.40), {250, 350, 500})
+    safePlaceAndUpgrade("unit_farmer_npc", Vector3.new(-338.47, 63.38, -77.79), {250, 350, 500})
+    safePlaceAndUpgrade("unit_farmer_npc", Vector3.new(-338.30, 63.38, -83.23), {250, 350, 500})
 
-    waitForCash(200)
-    local id3 = placeUnitAndGetId("unit_farmer_npc", Vector3.new(-338.30, 63.38, -83.23))
-    if id3 then upgradeAtCash(id3, {250, 350, 500}) end
-
-    -- 4 (без апгрейда)
+    -- 4: просто ставим beehive
     waitForCash(2500)
+    if restarting then return end
     placeUnitAndGetId("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
 
-    -- 5 и 6 beehive
-    waitForCash(2500)
-    local id5 = placeUnitAndGetId("unit_beehive", Vector3.new(-323.65, 63.46, -98.40))
-    if id5 then upgradeAtCash(id5, {1500, 4000, 10000, 25000}) end
+    -- 5–6: апгрейдим beehive
+    safePlaceAndUpgrade("unit_beehive", Vector3.new(-323.65, 63.46, -98.40), {1500, 4000, 10000, 25000})
+    safePlaceAndUpgrade("unit_beehive", Vector3.new(-324.86, 63.46, -91.45), {1500, 4000, 10000, 25000})
 
-    waitForCash(2500)
-    local id6 = placeUnitAndGetId("unit_beehive", Vector3.new(-324.86, 63.46, -91.45))
-    if id6 then upgradeAtCash(id6, {1500, 4000, 10000, 25000}) end
+    -- 7–9: pulse
+    safePlaceAndUpgrade("unit_pulse_plant", Vector3.new(-325.80, 63.94, -78.21), {3000, 7500, 10000, 25000})
+    safePlaceAndUpgrade("unit_pulse_plant", Vector3.new(-328.13, 63.94, -85.03), {3000, 7500, 10000, 25000})
+    safePlaceAndUpgrade("unit_pulse_plant", Vector3.new(-340.26, 63.94, -88.00), {3000, 7500, 10000, 25000})
 
-    -- 7-9 pulse plant
-    local pulseSteps = {3000, 7500, 10000, 25000}
-
-    waitForCash(5000)
-    local id7 = placeUnitAndGetId("unit_pulse_plant", Vector3.new(-325.80, 63.94, -78.21))
-    if id7 then upgradeAtCash(id7, pulseSteps) end
-
-    waitForCash(5000)
-    local id8 = placeUnitAndGetId("unit_pulse_plant", Vector3.new(-328.13, 63.94, -85.03))
-    if id8 then upgradeAtCash(id8, pulseSteps) end
-
-    waitForCash(5000)
-    local id9 = placeUnitAndGetId("unit_pulse_plant", Vector3.new(-340.26, 63.94, -88.00))
-    if id9 then upgradeAtCash(id9, pulseSteps) end
-
-    -- 💤 Ждём рестарт
-    waitForPlayAgain()
+    -- 🧘 После завершения — просто ждем кнопку рестарта
+    while not restarting do wait(1) end
 end
 
--- 🔁 Главный цикл
+-- 🚀 Главный цикл
 while true do
     runMatch()
 end
