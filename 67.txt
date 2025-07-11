@@ -168,6 +168,31 @@ end
 
 -- 🚀 ЗАПУСК ЦИКЛА
 while true do
+    -- Мониторим появление Play Again в любой момент (аварийный рестарт)
+    task.spawn(function()
+        while true do
+            wait(1)
+            local gui = player:FindFirstChild("PlayerGui")
+            if gui then
+                local btn = gui:FindFirstChild("GameGui")
+                and gui.GameGui:FindFirstChild("Screen")
+                and gui.GameGui.Screen:FindFirstChild("Middle")
+                and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
+                and gui.GameGui.Screen.Middle.GameEnd:FindFirstChild("Items")
+                and gui.GameGui.Screen.Middle.GameEnd.Items:FindFirstChild("Frame")
+                and gui.GameGui.Screen.Middle.GameEnd.Items.Frame:FindFirstChild("Actions")
+                and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions:FindFirstChild("Items")
+                and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
+
+                if btn and btn.Visible then
+                    print("⚠️ ЭКСТРЕННЫЙ РЕСТАРТ: нажимаем Play Again...")
+                    ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
+                    break
+                end
+            end
+        end
+    end)
+
     runMatch()
     waitForPlayAgainButton()
 end
