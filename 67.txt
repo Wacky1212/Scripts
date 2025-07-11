@@ -189,14 +189,7 @@ local function runMatch()
 end
 
 -- 🚀 Главный ЦИКЛ
-restarting = true  -- запускаем матч сразу, если активировали на экране Play Again
 while true do
-    if restarting then
-        restarting = false
-        runMatch()
-    end
-    wait(1)
-end
     restarting = false
 
     runMatch()
