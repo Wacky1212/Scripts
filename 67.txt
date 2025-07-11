@@ -57,12 +57,46 @@ local function upgradeAtCash(unitId, upgradeSteps)
     end
 end
 
+-- 🧠 Автовыбор сложности по UI
+local function autoVoteDifficulty(mode)
+    local difficultyMap = {
+        ["Easy"] = "dif_easy",
+        ["Normal"] = "dif_normal",
+        ["Hard"] = "dif_hard",
+        ["Insane"] = "dif_insane",
+        ["Impossible"] = "dif_impossible"
+    }
+
+    local arg = difficultyMap[mode or "Insane"] or "dif_insane"
+
+    local PlayerGui = player:WaitForChild("PlayerGui")
+    local voteUI = PlayerGui:WaitForChild("GameGui"):WaitForChild("Screen")
+        :WaitForChild("Middle"):WaitForChild("DifficultyVote")
+
+    task.spawn(function()
+        while true do
+            wait(0.2)
+            if voteUI.Visible then
+                print("🎯 Голосуем за сложность:", arg)
+                local success, result = pcall(function()
+                    return ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer(arg)
+                end)
+                if success then
+                    print("✅ Успешно проголосовано:", mode)
+                else
+                    warn("❌ Ошибка голосования:", result)
+                end
+                break
+            end
+        end
+    end)
+end
+
 -- 🔁 Цикл одиночной катки
 local function runMatch()
     wait(1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-    wait(1)
-    ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_insane")
+    autoVoteDifficulty("Insane")
     wait(1)
 
     -- 1-3: unit_farmer_npc
@@ -78,33 +112,19 @@ local function runMatch()
     local id3 = placeUnitAndGetId("unit_farmer_npc", Vector3.new(-338.30, 63.38, -83.23))
     if id3 then upgradeAtCash(id3, {250, 350, 500}) end
 
-    -- 4: beehive с тройным первым апгрейдом
+    -- 4: ставим beehive (БЕЗ апгрейда!)
     waitForCash(2500)
     local id4 = placeUnitAndGetId("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
-    if id4 then
-        waitForCash(1500) wait(0.5)
-        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
-        print("⬆️ [1/3] Первый апгрейд beehive")
-        wait(2)
-        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
-        print("⬆️ [2/3] Повтор первого апгрейда beehive")
-        wait(2)
-        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
-        print("⬆️ [3/3] Ещё один повтор первого апгрейда beehive")
 
-        waitForCash(4000)
-        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
-        waitForCash(10000)
-        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
-        waitForCash(25000)
-        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id4)
-    end
-
-    -- 5-6: beehive
+    -- 5: ставим и МАКСИМАЛЬНО апгрейдим beehive
     waitForCash(2500)
     local id5 = placeUnitAndGetId("unit_beehive", Vector3.new(-323.65, 63.46, -98.40))
     if id5 then upgradeAtCash(id5, {1500, 4000, 10000, 25000}) end
 
+    -- возвращаемся к 4-му и апгрейдим его
+    if id4 then upgradeAtCash(id4, {1500, 4000, 10000, 25000}) end
+
+    -- 6: ставим и апгрейдим beehive
     waitForCash(2500)
     local id6 = placeUnitAndGetId("unit_beehive", Vector3.new(-324.86, 63.46, -91.45))
     if id6 then upgradeAtCash(id6, {1500, 4000, 10000, 25000}) end
