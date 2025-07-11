@@ -93,6 +93,28 @@ local function autoVoteDifficulty(mode)
     end)
 end
 
+-- 🔁 Ожидание кнопки Play Again в ЛЮБОЙ момент
+task.spawn(function()
+    local gui = player:WaitForChild("PlayerGui")
+    while true do
+        wait(1)
+        local btn = gui:FindFirstChild("GameGui")
+        and gui.GameGui:FindFirstChild("Screen")
+        and gui.GameGui.Screen:FindFirstChild("Middle")
+        and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
+        and gui.GameGui.Screen.Middle.GameEnd:FindFirstChild("Items")
+        and gui.GameGui.Screen.Middle.GameEnd.Items:FindFirstChild("Frame")
+        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame:FindFirstChild("Actions")
+        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions:FindFirstChild("Items")
+        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
+
+        if btn and btn.Visible then
+            print("🛑 ОБНАРУЖЕНО ПОРАЖЕНИЕ — рестарт...")
+            ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
+        end
+    end
+end)
+
 -- 🔁 Цикл одиночной катки
 local function runMatch()
     wait(1)
@@ -142,57 +164,7 @@ local function runMatch()
     if id9 then upgradeAtCash(id9, pulseSteps) end
 end
 
--- 🔁 Ожидание появления кнопки Play Again и рестарт
-local function waitForPlayAgainButton()
-    print("🔄 Ждём кнопку Play Again...")
-    local gui = player:WaitForChild("PlayerGui")
-    while true do
-        wait(0.5)
-        local btn = gui:FindFirstChild("GameGui")
-        and gui.GameGui:FindFirstChild("Screen")
-        and gui.GameGui.Screen:FindFirstChild("Middle")
-        and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
-        and gui.GameGui.Screen.Middle.GameEnd:FindFirstChild("Items")
-        and gui.GameGui.Screen.Middle.GameEnd.Items:FindFirstChild("Frame")
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame:FindFirstChild("Actions")
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions:FindFirstChild("Items")
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
-
-        if btn and btn.Visible then
-            print("✅ Play Again кнопка найдена — рестарт...")
-            ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-            break
-        end
-    end
-end
-
 -- 🚀 ЗАПУСК ЦИКЛА
 while true do
-    -- Мониторим появление Play Again в любой момент (аварийный рестарт)
-    task.spawn(function()
-        while true do
-            wait(1)
-            local gui = player:FindFirstChild("PlayerGui")
-            if gui then
-                local btn = gui:FindFirstChild("GameGui")
-                and gui.GameGui:FindFirstChild("Screen")
-                and gui.GameGui.Screen:FindFirstChild("Middle")
-                and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
-                and gui.GameGui.Screen.Middle.GameEnd:FindFirstChild("Items")
-                and gui.GameGui.Screen.Middle.GameEnd.Items:FindFirstChild("Frame")
-                and gui.GameGui.Screen.Middle.GameEnd.Items.Frame:FindFirstChild("Actions")
-                and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions:FindFirstChild("Items")
-                and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
-
-                if btn and btn.Visible then
-                    print("⚠️ ЭКСТРЕННЫЙ РЕСТАРТ: нажимаем Play Again...")
-                    ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-                    break
-                end
-            end
-        end
-    end)
-
     runMatch()
-    waitForPlayAgainButton()
 end
