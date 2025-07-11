@@ -111,28 +111,6 @@ task.spawn(function()
         and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions:FindFirstChild("Items")
         and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
 
-        if btn and btn.Visible and not restarting then
-            print("🛑 Кнопка Play Again видна — жмём рестарт...")
-            restarting = true
-            ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-        end
-    end
-end)
-
-task.spawn(function()
-    local gui = player:WaitForChild("PlayerGui")
-    while true do
-        wait(1)
-        local btn = gui:FindFirstChild("GameGui")
-        and gui.GameGui:FindFirstChild("Screen")
-        and gui.GameGui.Screen:FindFirstChild("Middle")
-        and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
-        and gui.GameGui.Screen.Middle.GameEnd:FindFirstChild("Items")
-        and gui.GameGui.Screen.Middle.GameEnd.Items:FindFirstChild("Frame")
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame:FindFirstChild("Actions")
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions:FindFirstChild("Items")
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
-
         if btn and btn.Visible then
             print("❗ ОБНАРУЖЕНА КНОПКА PLAY AGAIN — аварийный рестарт...")
             restarting = true
@@ -211,17 +189,14 @@ local function runMatch()
 end
 
 -- 🚀 Главный ЦИКЛ
-local isRunning = false
+restarting = true  -- запускаем матч сразу, если активировали на экране Play Again
 while true do
-    if not isRunning then
+    if restarting then
         restarting = false
-        isRunning = true
         runMatch()
-        isRunning = false
     end
     wait(1)
 end
-
     restarting = false
 
     runMatch()
