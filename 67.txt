@@ -7,6 +7,8 @@ local player = Players.LocalPlayer
 local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 local cash = player:WaitForChild("leaderstats"):WaitForChild("Cash")
 
+local forceRestart = false
+
 -- 🔧 Конвертация строки в число
 local function parseCash(val)
     val = tostring(val or "0"):gsub(",", "")
@@ -93,7 +95,7 @@ local function autoVoteDifficulty(mode)
     end)
 end
 
--- 🔁 Ожидание кнопки Play Again в ЛЮБОЙ момент
+-- 🔁 Фоновая проверка на Play Again
 task.spawn(function()
     local gui = player:WaitForChild("PlayerGui")
     while true do
@@ -109,13 +111,14 @@ task.spawn(function()
         and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
 
         if btn and btn.Visible then
-            print("🛑 ОБНАРУЖЕНО ПОРАЖЕНИЕ — рестарт...")
+            print("🛑 ПОРАЖЕНИЕ — автоматический рестарт...")
+            forceRestart = true
             ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
         end
     end
 end)
 
--- 🔁 Цикл одиночной катки
+-- 🔁 Цикл одной катки
 local function runMatch()
     wait(1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
@@ -164,7 +167,9 @@ local function runMatch()
     if id9 then upgradeAtCash(id9, pulseSteps) end
 end
 
--- 🚀 ЗАПУСК ЦИКЛА
+-- 🚀 ГЛАВНЫЙ ЦИКЛ
 while true do
     runMatch()
+    while not forceRestart do wait(1) end
+    forceRestart = false
 end
