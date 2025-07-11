@@ -189,7 +189,17 @@ local function runMatch()
 end
 
 -- 🚀 Главный ЦИКЛ
+local isRunning = false
 while true do
+    if not isRunning then
+        restarting = false
+        isRunning = true
+        runMatch()
+        isRunning = false
+    end
+    wait(1)
+end
+
     restarting = false
 
     runMatch()
