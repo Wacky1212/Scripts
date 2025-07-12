@@ -1,4 +1,4 @@
--- 🔁 Упрощённый цикл: Restart → Impossible → Фермер → Ждём проигрыш
+-- 🔁 Упрощённый автолооп: рестарт → сложность → фермер → проигрыш → рестарт
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -34,14 +34,14 @@ local function placeUnitAndGetId(unitName, position)
             end
         end
     end
-    warn("❌ Не удалось поставить юнита")
+    warn("❌ Не удалось поставить юнита:", unitName)
 end
 
 -- 🧠 Автовыбор сложности Impossible
 local function voteImpossible()
     task.spawn(function()
         while true do
-            wait(0.1)
+            task.wait(0.1)
             local voteUI = gui:FindFirstChild("GameGui")
                 and gui.GameGui:FindFirstChild("Screen")
                 and gui.GameGui.Screen:FindFirstChild("Middle")
@@ -49,14 +49,14 @@ local function voteImpossible()
 
             if voteUI and voteUI.Visible then
                 ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_impossible")
-                print("🎯 Выбрана сложность: Impossible")
+                print("🎯 Сложность Impossible выбрана")
                 break
             end
         end
     end)
 end
 
--- 🔁 Мониторим Play Again (проигрыш)
+-- 🔁 Мониторим кнопку Play Again
 task.spawn(function()
     while true do
         wait(0.2)
@@ -72,44 +72,32 @@ task.spawn(function()
 
         if btn and btn.Visible then
             restarting = true
-            print("🔁 Play Again — рестарт матча")
+            print("🔁 Play Again найден — отправляем рестарт")
             ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
         end
     end
 end)
 
--- 🧪 Проверка начала матча
-local function waitForGameStart()
-    while true do
-        local map = workspace:FindFirstChild("Map")
-        local entities = map and map:FindFirstChild("Entities")
-        if map and entities and #entities:GetChildren() >= 0 then
-            entityFolder = entities
-            break
-        end
-        wait(0.2)
-    end
-end
-
--- 🔁 Цикл одной игры
+-- 🔁 Катка
 local function runMatch()
-    print("🚀 Новый запуск...")
-    wait(0.5)
+    print("🚀 Новый запуск runMatch()")
+    task.wait(0.2)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
     voteImpossible()
     restarting = false
 
-    waitForGameStart()
-    wait(1) -- дожидаемся полной инициализации раунда
+    -- Задержка перед установкой фермера (как в рабочей версии)
+    wait(3) -- ← СЮДА можно подбирать значение (2–4 сек стабильно)
+    if restarting then return end
 
-    -- Ставим фермера
+    -- Поставить фермера
     placeUnitAndGetId("unit_farmer_npc", Vector3.new(-332.14, 63.38, -77.40))
 
-    -- Ждём рестарта (проигрыша)
-    while not restarting do wait(0.5) end
+    -- Ждём проигрыша (рестарта)
+    while not restarting do task.wait(0.5) end
 end
 
--- 🚀 Цикл
+-- 🚀 ЦИКЛ
 while true do
     runMatch()
 end
