@@ -1,4 +1,5 @@
--- 🔁 УЛЬТРА-АВТОФАРМ: Insane → 9 юнитов → Рестарт
+
+-- 🔁 УЛЬТРА-АВТОФАРМ: С отладкой установки второго beehive
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -29,15 +30,18 @@ local function placeUnit(unitName, pos)
     ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
         Valid = true, Position = pos, CF = cf, Rotation = 180
     })
+    print("📦 Поставлен запрос на юнита:", unitName)
 
-    for _ = 1, 50 do
+    for i = 1, 100 do
         task.wait(0.1)
         for _, v in pairs(entityFolder:GetChildren()) do
             if not before[v] and v:IsA("Model") and v:GetAttribute("ID") then
+                print("✅ Юнит появился и получил ID:", unitName, v:GetAttribute("ID"))
                 return v:GetAttribute("ID")
             end
         end
     end
+    print("❌ Юнит НЕ получил ID:", unitName)
 end
 
 local function upgradeAtCash(id, upgrades)
@@ -45,19 +49,22 @@ local function upgradeAtCash(id, upgrades)
         waitForCash(cost)
         if restarting then return end
         ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id)
+        print("⬆️ Апгрейд:", id, "за", cost)
     end
 end
 
 local function safePlaceAndUpgrade(name, pos, steps)
     waitForCash(steps[1] or 1000)
     if restarting then return end
+    print("🚧 Установка юнита:", name)
     local id = placeUnit(name, pos)
     if id and steps and #steps > 0 then
         upgradeAtCash(id, steps)
+    elseif not id then
+        print("⚠️ Ошибка: юнит не поставлен:", name)
     end
 end
 
--- 🧠 Голосуем за Insane
 local function voteInsane()
     task.spawn(function()
         while true do
@@ -68,13 +75,13 @@ local function voteInsane()
             and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
             if ui and ui.Visible then
                 ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_insane")
+                print("🎯 Выбрана сложность: Insane")
                 break
             end
         end
     end)
 end
 
--- 🕹 Отслеживаем появление кнопки Play Again
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -89,42 +96,40 @@ task.spawn(function()
         and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
         if btn and btn.Visible then
             restarting = true
+            print("🔁 Обнаружена кнопка рестарта — перезапуск...")
             ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
         end
     end
 end)
 
--- 🔁 Один раунд
 local function run()
     task.wait(0.1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
     voteInsane()
     restarting = false
 
-    -- Фермеры (3)
+    -- Фермеры
     safePlaceAndUpgrade("unit_farmer_npc", Vector3.new(-332.14, 63.38, -77.40), {250, 350, 500})
     safePlaceAndUpgrade("unit_farmer_npc", Vector3.new(-338.47, 63.38, -77.79), {250, 350, 500})
     safePlaceAndUpgrade("unit_farmer_npc", Vector3.new(-338.30, 63.38, -83.23), {250, 350, 500})
 
-    -- Beehive (1 без апгрейда, 2 с)
+    -- Beehive
     waitForCash(2500)
     if restarting then return end
+    print("➡️ Ставим первого Beehive")
     placeUnit("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
 
+    print("➡️ Пытаемся поставить второго Beehive с апгрейдом")
     safePlaceAndUpgrade("unit_beehive", Vector3.new(-323.65, 63.46, -98.40), {1500, 4000, 10000, 25000})
+
     safePlaceAndUpgrade("unit_beehive", Vector3.new(-324.86, 63.46, -91.45), {1500, 4000, 10000, 25000})
 
-    -- Pulse (3 шт с фулл апгрейдом)
     local pulse = {3000, 7500, 10000, 25000}
     safePlaceAndUpgrade("unit_pulse_plant", Vector3.new(-325.80, 63.94, -78.21), pulse)
     safePlaceAndUpgrade("unit_pulse_plant", Vector3.new(-328.13, 63.94, -85.03), pulse)
     safePlaceAndUpgrade("unit_pulse_plant", Vector3.new(-340.26, 63.94, -88.00), pulse)
 
-    -- ⏳ Ждём рестарта
     while not restarting do task.wait(0.5) end
 end
 
--- 🚀 Цикл бесконечный
-while true do
-    run()
-end
+while true do run() end
