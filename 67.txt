@@ -47,12 +47,13 @@ local function placeUnitAndGetId(unitName, position)
     return nil
 end
 
--- ⬆️ Апгрейд по шагам
-local function upgradeAtCash(unitId, upgradeSteps)
-    for _, cost in ipairs(upgradeSteps) do
+-- ⬆️ Апгрейд по шагам (с обработчиком шага)
+local function upgradeAtCash(unitId, upgradeSteps, onStep)
+    for i, cost in ipairs(upgradeSteps) do
         waitForCash(cost)
         if restarting then return end
         ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
+        if onStep then onStep(i) end
     end
 end
 
@@ -99,7 +100,7 @@ task.spawn(function()
     end
 end)
 
--- 🚀 Автоскип волн после второго beetroot
+-- 🚀 Автоскип волн после нужного апгрейда
 task.spawn(function()
     while true do
         wait(0.2)
@@ -126,24 +127,27 @@ local function runMatch()
     teleportToStart()
     restarting = false
 
-    -- 1: Money tree (без апгрейдов)
+    -- 1: Money tree
     waitForCash(300)
     if restarting then return end
     placeUnitAndGetId("unit_money_tree", Vector3.new(-99.56, -27.89, 198.44))
 
-    -- 2: Первый Beetroot
+    -- 2: Первый beetroot
     waitForCash(200)
     if restarting then return end
     local beet1 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.68, -29.52, 225.88))
     if beet1 then upgradeAtCash(beet1, {250, 500, 750}) end
 
-    -- 3: Второй Beetroot (после него включаем автоскип)
+    -- 3: Второй beetroot + включаем автоскип после второго апгрейда
     waitForCash(200)
     if restarting then return end
     local beet2 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-69.74, -29.52, 226.14))
     if beet2 then
-        autoSkipEnabled = true
-        upgradeAtCash(beet2, {250, 500, 750})
+        upgradeAtCash(beet2, {250, 500, 750}, function(step)
+            if step == 2 then
+                autoSkipEnabled = true
+            end
+        end)
     end
 
     -- 4–6: Beehive юниты
@@ -166,7 +170,6 @@ local function runMatch()
     local b3 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.94, -28.91, 190.88))
     if b3 then upgradeAtCash(b3, beehiveSteps) end
 
-    -- Ожидаем рестарт
     while not restarting do wait(1) end
 end
 
