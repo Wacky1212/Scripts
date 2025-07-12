@@ -1,5 +1,5 @@
 
--- 🔁 АВТОФАРМ: Оптимизированный (Insane, Beehive фикс, минимум задержек)
+-- 🔁 АВТОФАРМ: Ставим юнитов с фиксом второго Beehive
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -108,6 +108,7 @@ local function runMatch()
     if restarting then return end
     placeUnitAndGetId("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
 
+    wait(1) -- 🔧 ЗАДЕРЖКА перед установкой второго Beehive
     safePlaceAndUpgrade("unit_beehive", Vector3.new(-323.65, 63.46, -98.40), {1500, 4000, 10000, 25000})
     safePlaceAndUpgrade("unit_beehive", Vector3.new(-324.86, 63.46, -91.45), {1500, 4000, 10000, 25000})
 
