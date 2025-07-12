@@ -1,5 +1,5 @@
+-- 🔁 АВТОФАРМ: Money Tree → Beetroot ×2 → Beehive ×3 (Impossible) + телепорт
 
--- 🔁 АВТОФАРМ: Money Tree → Beetroot ×2 → Beehive ×3 (Impossible) + телепорт после выбора сложности
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -51,6 +51,7 @@ local function upgradeAtCash(unitId, steps)
     end
 end
 
+-- 🧠 Голосуем за Impossible
 local function voteImpossible()
     task.spawn(function()
         while true do
@@ -67,7 +68,7 @@ local function voteImpossible()
     end)
 end
 
--- 🔁 Отслеживание кнопки Play Again
+-- 🔁 Обнаружение кнопки "Play Again"
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -87,55 +88,56 @@ task.spawn(function()
     end
 end)
 
--- 🔄 Один цикл игры
+-- 🔄 Один цикл
 local function run()
     task.wait(0.1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
     voteImpossible()
     restarting = false
 
-    -- 📍 Телепорт игрока после выбора сложности
-    task.wait(0.1)
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
+    -- 🧍 Телепорт игрока
+    task.spawn(function()
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:WaitForChild("HumanoidRootPart")
         hrp.CFrame = CFrame.new(-80.8577651977539, -29.522750854492188, 215.46897888183594) * CFrame.Angles(0, math.rad(180), 0)
-    end
+    end)
 
-    -- Money Tree
+    -- 🌳 Money Tree
     waitForCash(500)
     if restarting then return end
     placeUnitAndGetId("unit_money_tree", Vector3.new(-99.557, -27.898, 198.446))
 
-    -- Electric Beetroot ×2
-    local beetrootUpgrades = {250, 500, 750}
+    -- ⚡ Beetroot ×2
+    local beetUpgrades = {250, 500, 750}
     waitForCash(200)
     if restarting then return end
     local id1 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.684, -29.523, 225.884))
-    if id1 then upgradeAtCash(id1, beetrootUpgrades) end
+    if id1 then upgradeAtCash(id1, beetUpgrades) end
 
     waitForCash(200)
     if restarting then return end
     local id2 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-69.740, -29.523, 226.139))
-    if id2 then upgradeAtCash(id2, beetrootUpgrades) end
+    if id2 then upgradeAtCash(id2, beetUpgrades) end
 
-    -- Beehive ×3
-    local beehiveUpgrades = {1500, 4000, 10000, 25000}
+    -- 🐝 Beehive ×3
+    local beeUpgrades = {1500, 4000, 10000, 25000}
     waitForCash(2500)
     if restarting then return end
     local id3 = placeUnitAndGetId("unit_beehive", Vector3.new(-91.528, -28.908, 210.043))
-    if id3 then upgradeAtCash(id3, beehiveUpgrades) end
+    if id3 then upgradeAtCash(id3, beeUpgrades) end
 
     waitForCash(2500)
     if restarting then return end
     local id4 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.208, -28.908, 205.248))
-    if id4 then upgradeAtCash(id4, beehiveUpgrades) end
+    if id4 then upgradeAtCash(id4, beeUpgrades) end
 
     waitForCash(2500)
     if restarting then return end
     local id5 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.939, -28.908, 190.884))
-    if id5 then upgradeAtCash(id5, beehiveUpgrades) end
+    if id5 then upgradeAtCash(id5, beeUpgrades) end
 
     while not restarting do task.wait(0.2) end
 end
 
+-- 🔁 Главный цикл
 while true do run() end
