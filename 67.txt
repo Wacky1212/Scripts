@@ -1,4 +1,5 @@
--- 🔁 АВТОФАРМ: Money Tree → Beetroot ×2 → Beehive ×3 (Impossible)
+
+-- 🔁 АВТОФАРМ: Money Tree → Beetroot ×2 → Beehive ×3 (Impossible) + телепорт после выбора сложности
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -93,6 +94,13 @@ local function run()
     voteImpossible()
     restarting = false
 
+    -- 📍 Телепорт игрока после выбора сложности
+    task.wait(0.1)
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = CFrame.new(-80.8577651977539, -29.522750854492188, 215.46897888183594) * CFrame.Angles(0, math.rad(180), 0)
+    end
+
     -- Money Tree
     waitForCash(500)
     if restarting then return end
@@ -130,7 +138,4 @@ local function run()
     while not restarting do task.wait(0.2) end
 end
 
--- 🚀 Запуск бесконечного цикла
-while true do
-    run()
-end
+while true do run() end
