@@ -57,7 +57,7 @@ end
 -- 🚀 Автоскип волн (включается позже)
 task.spawn(function()
     while true do
-        wait(1)
+        wait(2)
         if autoSkipEnabled and not restarting then
             ReplicatedStorage.RemoteFunctions.SkipWave:InvokeServer("y")
         end
