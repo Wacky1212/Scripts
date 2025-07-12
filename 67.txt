@@ -58,7 +58,7 @@ local function safePlaceAndUpgrade(name, pos, steps)
     if id then upgradeAtCash(id, steps) end
 end
 
--- 🧠 Автовыбор сложности Impossible
+-- 🧠 Автовыбор сложности Insane
 local function autoVoteDifficulty()
     task.spawn(function()
         while true do
@@ -68,7 +68,7 @@ local function autoVoteDifficulty()
                 and gui.GameGui.Screen.Middle
                 and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
             if ui and ui.Visible then
-                ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_impossible")
+                ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_insane")
                 break
             end
         end
