@@ -1,5 +1,4 @@
-
--- 🔁 АВТОФАРМ: Ставим юнитов с фиксом второго Beehive
+-- 🔁 АВТОФАРМ: Money Tree → Beetroot ×2 → Beehive ×3 (Impossible)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -27,7 +26,10 @@ local function placeUnitAndGetId(unitName, pos)
 
     local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(180), 0)
     ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
-        Valid = true, Position = pos, CF = cf, Rotation = 180
+        Valid = true,
+        Position = pos,
+        CF = cf,
+        Rotation = 180
     })
 
     for _ = 1, 50 do
@@ -48,42 +50,35 @@ local function upgradeAtCash(unitId, steps)
     end
 end
 
-local function safePlaceAndUpgrade(name, pos, steps)
-    waitForCash(steps[1] or 1000)
-    if restarting then return end
-    local id = placeUnitAndGetId(name, pos)
-    if id and steps and #steps > 0 then upgradeAtCash(id, steps) end
-end
-
-local function autoVoteDifficulty()
+local function voteImpossible()
     task.spawn(function()
         while true do
             task.wait(0.1)
-            local voteUI = gui:FindFirstChild("GameGui")
-            and gui.GameGui:FindFirstChild("Screen")
-            and gui.GameGui.Screen:FindFirstChild("Middle")
-            and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
-            if voteUI and voteUI.Visible then
-                ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_insane")
+            local ui = gui:FindFirstChild("GameGui")
+                and gui.GameGui.Screen
+                and gui.GameGui.Screen.Middle
+                and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
+            if ui and ui.Visible then
+                ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_impossible")
                 break
             end
         end
     end)
 end
 
--- 🔁 Наблюдение за Play Again
+-- 🔁 Отслеживание кнопки Play Again
 task.spawn(function()
     while true do
         task.wait(0.1)
         local btn = gui:FindFirstChild("GameGui")
-        and gui.GameGui.Screen
-        and gui.GameGui.Screen.Middle
-        and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
-        and gui.GameGui.Screen.Middle.GameEnd.Items
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
+            and gui.GameGui.Screen
+            and gui.GameGui.Screen.Middle
+            and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
+            and gui.GameGui.Screen.Middle.GameEnd.Items
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
         if btn and btn.Visible then
             restarting = true
             ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
@@ -91,33 +86,51 @@ task.spawn(function()
     end
 end)
 
--- 🔄 Один матч
-local function runMatch()
+-- 🔄 Один цикл игры
+local function run()
     task.wait(0.1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-    autoVoteDifficulty()
+    voteImpossible()
     restarting = false
 
-    -- Фермеры
-    safePlaceAndUpgrade("unit_farmer_npc", Vector3.new(-332.14, 63.38, -77.40), {250, 350, 500})
-    safePlaceAndUpgrade("unit_farmer_npc", Vector3.new(-338.47, 63.38, -77.79), {250, 350, 500})
-    safePlaceAndUpgrade("unit_farmer_npc", Vector3.new(-338.30, 63.38, -83.23), {250, 350, 500})
+    -- Money Tree
+    waitForCash(500)
+    if restarting then return end
+    placeUnitAndGetId("unit_money_tree", Vector3.new(-99.557, -27.898, 198.446))
 
-    -- Beehive
+    -- Electric Beetroot ×2
+    local beetrootUpgrades = {250, 500, 750}
+    waitForCash(200)
+    if restarting then return end
+    local id1 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.684, -29.523, 225.884))
+    if id1 then upgradeAtCash(id1, beetrootUpgrades) end
+
+    waitForCash(200)
+    if restarting then return end
+    local id2 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-69.740, -29.523, 226.139))
+    if id2 then upgradeAtCash(id2, beetrootUpgrades) end
+
+    -- Beehive ×3
+    local beehiveUpgrades = {1500, 4000, 10000, 25000}
     waitForCash(2500)
     if restarting then return end
-    placeUnitAndGetId("unit_beehive", Vector3.new(-330.08, 63.46, -99.32))
+    local id3 = placeUnitAndGetId("unit_beehive", Vector3.new(-91.528, -28.908, 210.043))
+    if id3 then upgradeAtCash(id3, beehiveUpgrades) end
 
-    wait(1) -- 🔧 ЗАДЕРЖКА перед установкой второго Beehive
-    safePlaceAndUpgrade("unit_beehive", Vector3.new(-323.65, 63.46, -98.40), {1500, 4000, 10000, 25000})
-    safePlaceAndUpgrade("unit_beehive", Vector3.new(-324.86, 63.46, -91.45), {1500, 4000, 10000, 25000})
+    waitForCash(2500)
+    if restarting then return end
+    local id4 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.208, -28.908, 205.248))
+    if id4 then upgradeAtCash(id4, beehiveUpgrades) end
 
-    local pulse = {3000, 7500, 10000, 25000}
-    safePlaceAndUpgrade("unit_pulse_plant", Vector3.new(-325.80, 63.94, -78.21), pulse)
-    safePlaceAndUpgrade("unit_pulse_plant", Vector3.new(-328.13, 63.94, -85.03), pulse)
-    safePlaceAndUpgrade("unit_pulse_plant", Vector3.new(-340.26, 63.94, -88.00), pulse)
+    waitForCash(2500)
+    if restarting then return end
+    local id5 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.939, -28.908, 190.884))
+    if id5 then upgradeAtCash(id5, beehiveUpgrades) end
 
     while not restarting do task.wait(0.2) end
 end
 
-while true do runMatch() end
+-- 🚀 Запуск бесконечного цикла
+while true do
+    run()
+end
