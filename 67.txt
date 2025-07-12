@@ -48,12 +48,11 @@ local function placeUnitAndGetId(unitName, position)
 end
 
 -- ⬆️ Апгрейд по шагам
-local function upgradeAtCash(unitId, upgradeSteps, onUpgradeStep)
-    for i, cost in ipairs(upgradeSteps) do
+local function upgradeAtCash(unitId, upgradeSteps)
+    for _, cost in ipairs(upgradeSteps) do
         waitForCash(cost)
         if restarting then return end
         ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
-        if onUpgradeStep then onUpgradeStep(i) end
     end
 end
 
@@ -100,7 +99,7 @@ task.spawn(function()
     end
 end)
 
--- 🚀 Автоскип волн после 3-го апгрейда
+-- 🚀 Автоскип волн после второго beetroot
 task.spawn(function()
     while true do
         wait(0.2)
@@ -132,23 +131,20 @@ local function runMatch()
     if restarting then return end
     placeUnitAndGetId("unit_money_tree", Vector3.new(-99.56, -27.89, 198.44))
 
-    -- 2: Первый Beetroot с отслеживанием 3-го апгрейда
+    -- 2: Первый Beetroot
     waitForCash(200)
     if restarting then return end
     local beet1 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.68, -29.52, 225.88))
-    if beet1 then
-        upgradeAtCash(beet1, {250, 500, 750}, function(step)
-            if step == 3 then
-                autoSkipEnabled = true
-            end
-        end)
-    end
+    if beet1 then upgradeAtCash(beet1, {250, 500, 750}) end
 
-    -- 3: Второй Beetroot
+    -- 3: Второй Beetroot (после него включаем автоскип)
     waitForCash(200)
     if restarting then return end
     local beet2 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-69.74, -29.52, 226.14))
-    if beet2 then upgradeAtCash(beet2, {250, 500, 750}) end
+    if beet2 then
+        autoSkipEnabled = true
+        upgradeAtCash(beet2, {250, 500, 750})
+    end
 
     -- 4–6: Beehive юниты
     local beehiveSteps = {1500, 4000, 10000, 25000}
