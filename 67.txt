@@ -7,7 +7,6 @@ local cash = player:WaitForChild("leaderstats"):WaitForChild("Cash")
 local restarting = false
 local autoSkipEnabled = false
 
--- 💰 Парсинг денег
 local function parseCash(val)
     if not val then return 0 end
     val = tostring(val):gsub(",", "")
@@ -18,12 +17,10 @@ local function parseCash(val)
     return tonumber(val) or 0
 end
 
--- ⏳ Ждём нужное количество денег
 local function waitForCash(amount)
     repeat wait(0.2) until parseCash(cash.Value) >= amount or restarting
 end
 
--- 📦 Ставим юнита и получаем его ID
 local function placeUnitAndGetId(unitName, position)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
@@ -47,7 +44,6 @@ local function placeUnitAndGetId(unitName, position)
     return nil
 end
 
--- ⬆️ Апгрейд по шагам (с обработчиком шага)
 local function upgradeAtCash(unitId, upgradeSteps, onStep)
     for i, cost in ipairs(upgradeSteps) do
         waitForCash(cost)
@@ -57,7 +53,6 @@ local function upgradeAtCash(unitId, upgradeSteps, onStep)
     end
 end
 
--- 🧠 Автовыбор сложности
 local function autoVoteDifficulty(mode)
     local arg = ({
         Easy = "dif_easy",
@@ -84,7 +79,6 @@ local function autoVoteDifficulty(mode)
     end)
 end
 
--- 🔁 Рестарт, если кнопка появилась
 task.spawn(function()
     local gui = player:WaitForChild("PlayerGui")
     while true do
@@ -100,7 +94,6 @@ task.spawn(function()
     end
 end)
 
--- 🚀 Автоскип волн
 task.spawn(function()
     while true do
         wait(0.2)
@@ -110,7 +103,6 @@ task.spawn(function()
     end
 end)
 
--- 📍 Телепорт
 local function teleportToStart()
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if root then
@@ -118,7 +110,6 @@ local function teleportToStart()
     end
 end
 
--- 🔄 Один матч
 local function runMatch()
     wait(1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
@@ -127,52 +118,70 @@ local function runMatch()
     teleportToStart()
     restarting = false
 
-    -- 1: Money tree
     waitForCash(300)
     if restarting then return end
     placeUnitAndGetId("unit_money_tree", Vector3.new(-99.56, -27.89, 198.44))
 
-    -- 2: Первый beetroot
     waitForCash(200)
     if restarting then return end
     local beet1 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.68, -29.52, 225.88))
     if beet1 then upgradeAtCash(beet1, {250, 500, 750}) end
 
-    -- 3: Второй beetroot
     waitForCash(200)
     if restarting then return end
     local beet2 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-69.74, -29.52, 226.14))
     if beet2 then upgradeAtCash(beet2, {250, 500, 750}) end
 
-    -- 4: Первый beehive (включаем автоскип после 1 апгрейда)
-    local beehiveSteps = {1500, 4000, 10000, 25000}
+    -- Beehive 1 (включаем автоскип после первого апгрейда)
     waitForCash(2500)
     if restarting then return end
     local b1 = placeUnitAndGetId("unit_beehive", Vector3.new(-91.53, -28.91, 210.04))
     if b1 then
-        upgradeAtCash(b1, beehiveSteps, function(step)
+        upgradeAtCash(b1, {1500, 4000, 10000, 25000}, function(step)
             if step == 1 then autoSkipEnabled = true end
         end)
     end
 
-    -- 5
+    -- Beehive 2
     wait(1)
     waitForCash(2500)
     if restarting then return end
     local b2 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.21, -28.91, 205.25))
-    if b2 then upgradeAtCash(b2, beehiveSteps) end
+    if b2 then upgradeAtCash(b2, {1500, 4000, 10000, 25000}) end
 
-    -- 6
+    -- Beehive 3
     wait(1)
     waitForCash(2500)
     if restarting then return end
     local b3 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.94, -28.91, 190.88))
-    if b3 then upgradeAtCash(b3, beehiveSteps) end
+    if b3 then upgradeAtCash(b3, {1500, 4000, 10000, 25000}) end
+
+    -- 🍄 Big Mushrooms
+    local mushUpgrades = {6000, 7500, 12500, 20000}
+
+    waitForCash(3000)
+    if restarting then return end
+    local m1 = placeUnitAndGetId("unit_big_mushroom", Vector3.new(-70.84, -27.52, 207.98))
+    if m1 then upgradeAtCash(m1, mushUpgrades) end
+
+    waitForCash(3000)
+    if restarting then return end
+    local m2 = placeUnitAndGetId("unit_big_mushroom", Vector3.new(-76.71, -27.52, 212.71))
+    if m2 then upgradeAtCash(m2, mushUpgrades) end
+
+    waitForCash(3000)
+    if restarting then return end
+    local m3 = placeUnitAndGetId("unit_big_mushroom", Vector3.new(-83.44, -27.52, 205.47))
+    if m3 then upgradeAtCash(m3, mushUpgrades) end
+
+    waitForCash(3000)
+    if restarting then return end
+    local m4 = placeUnitAndGetId("unit_big_mushroom", Vector3.new(-68.76, -27.52, 216.41))
+    if m4 then upgradeAtCash(m4, mushUpgrades) end
 
     while not restarting do wait(1) end
 end
 
--- 🔁 Цикл
 while true do
     runMatch()
 end
