@@ -1,19 +1,31 @@
--- 🔁 Упрощённый автолооп: рестарт → сложность → фермер → проигрыш → рестарт
+-- 🔁 ПРОСТОЙ АВТОФАРМ: рестарт → impossible → фермер → ждать проигрыша
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
+local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
+local cash = player:WaitForChild("leaderstats"):WaitForChild("Cash")
 
 local restarting = false
-local entityFolder = nil
 
--- 📦 Установка юнита
-local function placeUnitAndGetId(unitName, position)
-    if not entityFolder then
-        entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
+-- 💰 Конвертация строки денег
+local function parseCash(val)
+    if not val then return 0 end
+    val = tostring(val):gsub(",", "")
+    if val:lower():find("k") then
+        return tonumber(val:lower():gsub("k", "")) * 1000
     end
+    return tonumber(val) or 0
+end
 
+-- 💰 Ждать баланс
+local function waitForCash(amount)
+    repeat wait(0.2) until parseCash(cash.Value) >= amount or restarting
+end
+
+-- 📦 Ставим юнита и получаем его ID
+local function placeUnitAndGetId(unitName, position)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
 
@@ -26,25 +38,33 @@ local function placeUnitAndGetId(unitName, position)
     })
 
     for _ = 1, 50 do
-        task.wait(0.1)
+        wait(0.1)
         for _, v in pairs(entityFolder:GetChildren()) do
             if not before[v] and v:IsA("Model") and v:GetAttribute("ID") then
-                print("✅ Юнит поставлен:", unitName)
+                print("✅ Поставлен юнит:", unitName)
                 return v:GetAttribute("ID")
             end
         end
     end
-    warn("❌ Не удалось поставить юнита:", unitName)
+    warn("❌ Юнит не найден:", unitName)
+    return nil
 end
 
--- 🧠 Автовыбор сложности Impossible
-local function voteImpossible()
+-- 📦 Без апгрейда — просто ставим, когда хватает денег
+local function safePlaceOnly(unitName, position, cost)
+    waitForCash(cost)
+    if restarting then return end
+    placeUnitAndGetId(unitName, position)
+end
+
+-- 🧠 Голосуем за Impossible
+local function autoVoteImpossible()
     task.spawn(function()
         while true do
-            task.wait(0.1)
+            wait(0.1)
             local voteUI = gui:FindFirstChild("GameGui")
-                and gui.GameGui:FindFirstChild("Screen")
-                and gui.GameGui.Screen:FindFirstChild("Middle")
+                and gui.GameGui.Screen
+                and gui.GameGui.Screen.Middle
                 and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
 
             if voteUI and voteUI.Visible then
@@ -56,10 +76,10 @@ local function voteImpossible()
     end)
 end
 
--- 🔁 Мониторим кнопку Play Again
+-- 🔁 Обнаружение кнопки рестарта
 task.spawn(function()
     while true do
-        wait(0.2)
+        wait(0.3)
         local btn = gui:FindFirstChild("GameGui")
             and gui.GameGui.Screen
             and gui.GameGui.Screen.Middle
@@ -72,32 +92,28 @@ task.spawn(function()
 
         if btn and btn.Visible then
             restarting = true
-            print("🔁 Play Again найден — отправляем рестарт")
+            print("🔁 Play Again — перезапуск...")
             ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
         end
     end
 end)
 
--- 🔁 Катка
-local function runMatch()
-    print("🚀 Новый запуск runMatch()")
-    task.wait(0.2)
+-- 🔄 Раунд
+local function runSimpleLoop()
+    print("🚀 Новый запуск")
+    wait(0.5)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-    voteImpossible()
+    autoVoteImpossible()
     restarting = false
 
-    -- Задержка перед установкой фермера (как в рабочей версии)
-    wait(3) -- ← СЮДА можно подбирать значение (2–4 сек стабильно)
-    if restarting then return end
+    -- Ставим фермера по старой рабочей схеме
+    safePlaceOnly("unit_farmer_npc", Vector3.new(-332.14, 63.38, -77.40), 200)
 
-    -- Поставить фермера
-    placeUnitAndGetId("unit_farmer_npc", Vector3.new(-332.14, 63.38, -77.40))
-
-    -- Ждём проигрыша (рестарта)
-    while not restarting do task.wait(0.5) end
+    -- Ждём рестарта
+    while not restarting do wait(0.5) end
 end
 
--- 🚀 ЦИКЛ
+-- 🚀 Главный цикл
 while true do
-    runMatch()
+    runSimpleLoop()
 end
