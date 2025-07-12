@@ -1,15 +1,15 @@
--- 🔁 ПРОСТОЙ АВТОФАРМ: рестарт → impossible → фермер → ждать проигрыша
+-- 🔁 УЛЬТРА-ОПТИМИЗИРОВАННЫЙ СКРИПТ: Restart → Impossible → Фермер → Restart
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
-local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 local cash = player:WaitForChild("leaderstats"):WaitForChild("Cash")
+local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 
 local restarting = false
 
--- 💰 Конвертация строки Cash
+-- 💰 Чтение баланса
 local function parseCash(val)
     val = tostring(val or "0"):gsub(",", "")
     if val:lower():find("k") then
@@ -18,101 +18,83 @@ local function parseCash(val)
     return tonumber(val) or 0
 end
 
--- 💰 Ждать нужное количество денег
+-- 💰 Ожидание баланса
 local function waitForCash(amount)
-    repeat wait(0.1) until parseCash(cash.Value) >= amount or restarting
+    repeat task.wait(0.1) until parseCash(cash.Value) >= amount or restarting
 end
 
--- 📦 Установка юнита (точно как в твоём рабочем скрипте)
-local function placeUnitAndGetId(unitName, position)
+-- 📦 Установка юнита
+local function placeUnit(unitName, pos)
     local before = {}
-    for _, v in pairs(entityFolder:GetChildren()) do
-        before[v] = true
-    end
+    for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
 
-    local cf = CFrame.new(position) * CFrame.Angles(0, math.rad(180), 0)
+    local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(180), 0)
     ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
-        Valid = true,
-        Position = position,
-        CF = cf,
-        Rotation = 180
+        Valid = true, Position = pos, CF = cf, Rotation = 180
     })
 
     for _ = 1, 50 do
-        wait(0.1)
+        task.wait(0.1)
         for _, v in pairs(entityFolder:GetChildren()) do
             if not before[v] and v:IsA("Model") and v:GetAttribute("ID") then
-                print("✅ Поставлен юнит:", unitName)
-                return v:GetAttribute("ID")
+                return
             end
         end
     end
-
-    warn("❌ Юнит не найден:", unitName)
-    return nil
 end
 
 -- 🧠 Автовыбор сложности Impossible
 local function voteImpossible()
     task.spawn(function()
         while true do
-            wait(0.1)
-            local voteUI = gui:FindFirstChild("GameGui")
-                and gui.GameGui.Screen
-                and gui.GameGui.Screen.Middle
-                and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
-
-            if voteUI and voteUI.Visible then
+            task.wait(0.1)
+            local ui = gui:FindFirstChild("GameGui")
+            and gui.GameGui.Screen
+            and gui.GameGui.Screen.Middle
+            and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
+            if ui and ui.Visible then
                 ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_impossible")
-                print("🎯 Сложность Impossible выбрана")
                 break
             end
         end
     end)
 end
 
--- 🔁 Отслеживание кнопки рестарта (Play Again)
+-- 🔁 Отслеживание Play Again
 task.spawn(function()
     while true do
-        wait(0.2)
+        task.wait(0.1)
         local btn = gui:FindFirstChild("GameGui")
-            and gui.GameGui.Screen
-            and gui.GameGui.Screen.Middle
-            and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
-            and gui.GameGui.Screen.Middle.GameEnd.Items
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
-
+        and gui.GameGui.Screen
+        and gui.GameGui.Screen.Middle
+        and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
+        and gui.GameGui.Screen.Middle.GameEnd.Items
+        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame
+        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions
+        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items
+        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
         if btn and btn.Visible then
             restarting = true
-            print("🔁 Play Again найден — рестарт")
             ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
         end
     end
 end)
 
--- 🔄 Один цикл
-local function runMatch()
-    print("🚀 Новый цикл")
-    wait(0.5)
+-- 🔁 ОДИН ЦИКЛ
+local function run()
+    task.wait(0.1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
     voteImpossible()
     restarting = false
 
-    wait(1) -- небольшая пауза после голосования
     waitForCash(200)
     if restarting then return end
+    placeUnit("unit_farmer_npc", Vector3.new(-332.14, 63.38, -77.40))
 
-    -- Ставим фермера по проверенной схеме
-    placeUnitAndGetId("unit_farmer_npc", Vector3.new(-332.14, 63.38, -77.40))
-
-    -- Ждём рестарт
-    while not restarting do wait(0.5) end
+    while not restarting do task.wait(0.1) end
 end
 
--- 🚀 Главный цикл
+-- 🚀 ЦИКЛ БЕСКОНЕЧНЫЙ
 while true do
-    runMatch()
+    run()
 end
