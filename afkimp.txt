@@ -9,25 +9,26 @@ local cash = player:WaitForChild("leaderstats"):WaitForChild("Cash")
 
 local restarting = false
 
--- 💰 Конвертация строки денег
+-- 💰 Конвертация строки Cash
 local function parseCash(val)
-    if not val then return 0 end
-    val = tostring(val):gsub(",", "")
+    val = tostring(val or "0"):gsub(",", "")
     if val:lower():find("k") then
         return tonumber(val:lower():gsub("k", "")) * 1000
     end
     return tonumber(val) or 0
 end
 
--- 💰 Ждать баланс
+-- 💰 Ждать нужное количество денег
 local function waitForCash(amount)
-    repeat wait(0.2) until parseCash(cash.Value) >= amount or restarting
+    repeat wait(0.1) until parseCash(cash.Value) >= amount or restarting
 end
 
--- 📦 Ставим юнита и получаем его ID
+-- 📦 Установка юнита (точно как в твоём рабочем скрипте)
 local function placeUnitAndGetId(unitName, position)
     local before = {}
-    for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
+    for _, v in pairs(entityFolder:GetChildren()) do
+        before[v] = true
+    end
 
     local cf = CFrame.new(position) * CFrame.Angles(0, math.rad(180), 0)
     ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
@@ -46,19 +47,13 @@ local function placeUnitAndGetId(unitName, position)
             end
         end
     end
+
     warn("❌ Юнит не найден:", unitName)
     return nil
 end
 
--- 📦 Без апгрейда — просто ставим, когда хватает денег
-local function safePlaceOnly(unitName, position, cost)
-    waitForCash(cost)
-    if restarting then return end
-    placeUnitAndGetId(unitName, position)
-end
-
--- 🧠 Голосуем за Impossible
-local function autoVoteImpossible()
+-- 🧠 Автовыбор сложности Impossible
+local function voteImpossible()
     task.spawn(function()
         while true do
             wait(0.1)
@@ -76,10 +71,10 @@ local function autoVoteImpossible()
     end)
 end
 
--- 🔁 Обнаружение кнопки рестарта
+-- 🔁 Отслеживание кнопки рестарта (Play Again)
 task.spawn(function()
     while true do
-        wait(0.3)
+        wait(0.2)
         local btn = gui:FindFirstChild("GameGui")
             and gui.GameGui.Screen
             and gui.GameGui.Screen.Middle
@@ -92,28 +87,32 @@ task.spawn(function()
 
         if btn and btn.Visible then
             restarting = true
-            print("🔁 Play Again — перезапуск...")
+            print("🔁 Play Again найден — рестарт")
             ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
         end
     end
 end)
 
--- 🔄 Раунд
-local function runSimpleLoop()
-    print("🚀 Новый запуск")
+-- 🔄 Один цикл
+local function runMatch()
+    print("🚀 Новый цикл")
     wait(0.5)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-    autoVoteImpossible()
+    voteImpossible()
     restarting = false
 
-    -- Ставим фермера по старой рабочей схеме
-    safePlaceOnly("unit_farmer_npc", Vector3.new(-332.14, 63.38, -77.40), 200)
+    wait(1) -- небольшая пауза после голосования
+    waitForCash(200)
+    if restarting then return end
 
-    -- Ждём рестарта
+    -- Ставим фермера по проверенной схеме
+    placeUnitAndGetId("unit_farmer_npc", Vector3.new(-332.14, 63.38, -77.40))
+
+    -- Ждём рестарт
     while not restarting do wait(0.5) end
 end
 
 -- 🚀 Главный цикл
 while true do
-    runSimpleLoop()
+    runMatch()
 end
