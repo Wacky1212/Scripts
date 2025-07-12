@@ -1,4 +1,4 @@
--- 🔁 АВТОФАРМ: Ставит, апгрейдит, рестартит, автоскип после апгрейда
+-- 🔁 АВТОФАРМ: Ставит, апгрейдит, рестартит, автоскип после первого апгрейда
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -57,7 +57,7 @@ end
 -- 🚀 Автоскип волн (включается позже)
 task.spawn(function()
     while true do
-        wait(2) -- ← здесь скорость автоскипа
+        wait(2)
         if autoSkipEnabled and not restarting then
             ReplicatedStorage.RemoteFunctions.SkipWave:InvokeServer("y")
         end
@@ -119,11 +119,8 @@ local function runMatch()
         root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897)
     end
 
-    -- 🟡 ЗАДЕРЖКА ПОСЛЕ ВЫБОРА СЛОЖНОСТИ перед первым юнитом
-    wait(10)
-
     -- 1. Деньги дерево (без апгрейда)
-    waitForCash(1000)
+    waitForCash(400)
     placeUnitAndGetId("unit_money_tree", Vector3.new(-99.5573, -27.8982, 198.4464))
 
     -- 2. Первый Beetroot
@@ -132,7 +129,7 @@ local function runMatch()
     if beet1 then
         upgradeAtCash(beet1, {250, 500, 750}, function(step)
             if step == 1 then
-                autoSkipEnabled = true
+                autoSkipEnabled = true -- включаем автоскип после первого апгрейда
             end
         end)
     end
