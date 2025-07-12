@@ -1,29 +1,18 @@
--- 🔁 АВТОФАРМ: надёжный цикл с фиксами
+-- 🧠 ДОПОЛНЕННЫЙ СКРИПТ С 3 beetroot
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
-local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
-
 local gui = player:WaitForChild("PlayerGui")
-local cash = nil
-
-repeat wait(0.1)
-    local ls = player:FindFirstChild("leaderstats")
-    if ls then
-        cash = ls:FindFirstChild("Cash")
-    end
-until cash
+local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
+local cash = player:WaitForChild("leaderstats"):WaitForChild("Cash")
 
 local restarting = false
 local autoSkipEnabled = false
 
--- 💰 Надёжная конвертация денег
 local function parseCash(val)
-    if typeof(val) ~= "string" and typeof(val) ~= "number" then return 0 end
-    val = tostring(val):gsub(",", "")
+    val = tostring(val or ""):gsub(",", "")
     if val:lower():find("k") then
-        local num = tonumber(val:lower():gsub("k", ""))
-        return (num or 0) * 1000
+        return (tonumber(val:lower():gsub("k", "")) or 0) * 1000
     end
     return tonumber(val) or 0
 end
@@ -32,18 +21,13 @@ local function waitForCash(amount)
     repeat wait(0.1) until parseCash(cash.Value) >= amount or restarting
 end
 
-local function placeUnitAndGetId(unitName, position)
+local function placeUnitAndGetId(name, pos)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
-
-    local cf = CFrame.new(position) * CFrame.Angles(0, math.rad(180), 0)
-    ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
-        Valid = true,
-        Position = position,
-        CF = cf,
-        Rotation = 180
+    local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(180), 0)
+    ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(name, {
+        Valid = true, Position = pos, CF = cf, Rotation = 180
     })
-
     for _ = 1, 50 do
         wait(0.1)
         for _, v in pairs(entityFolder:GetChildren()) do
@@ -55,8 +39,8 @@ local function placeUnitAndGetId(unitName, position)
     return nil
 end
 
-local function upgradeAtCash(unitId, upgradeSteps, onStep)
-    for i, cost in ipairs(upgradeSteps) do
+local function upgradeAtCash(unitId, steps, onStep)
+    for i, cost in ipairs(steps) do
         waitForCash(cost)
         if restarting then return end
         ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
@@ -64,7 +48,7 @@ local function upgradeAtCash(unitId, upgradeSteps, onStep)
     end
 end
 
--- 🚀 Автоскип волн
+-- 🌊 Автоскип
 task.spawn(function()
     while true do
         wait(1)
@@ -74,16 +58,16 @@ task.spawn(function()
     end
 end)
 
--- 🧠 Голосование за сложность
-local function autoVoteDifficulty()
+-- 🗳️ Голосуем за сложность
+local function voteDifficulty()
     task.spawn(function()
         while true do
             wait(0.1)
-            local voteUI = gui:FindFirstChild("GameGui")
-                and gui.GameGui:FindFirstChild("Screen")
-                and gui.GameGui.Screen:FindFirstChild("Middle")
+            local ui = gui:FindFirstChild("GameGui")
+                and gui.GameGui.Screen
+                and gui.GameGui.Screen.Middle
                 and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
-            if voteUI and voteUI.Visible then
+            if ui and ui.Visible then
                 ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_impossible")
                 break
             end
@@ -91,7 +75,7 @@ local function autoVoteDifficulty()
     end)
 end
 
--- 🔁 Следим за кнопкой Play Again
+-- 🔁 Play Again обработка
 task.spawn(function()
     while true do
         wait(0.5)
@@ -112,11 +96,11 @@ task.spawn(function()
     end
 end)
 
--- 🔁 Один матч
+-- ▶️ Один матч
 local function runMatch()
     wait(1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-    autoVoteDifficulty()
+    voteDifficulty()
     wait(1)
     restarting = false
     autoSkipEnabled = false
@@ -127,39 +111,45 @@ local function runMatch()
         root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897)
     end
 
-    -- 1. Деньги дерево (без апгрейда)
+    -- 🪙 Деньги дерево
     waitForCash(400)
     placeUnitAndGetId("unit_money_tree", Vector3.new(-99.5573, -27.8982, 198.4464))
 
-    -- 2. Первый Beetroot
+    -- 🥬 Первый beetroot
     waitForCash(200)
     local beet1 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
     if beet1 then upgradeAtCash(beet1, {250, 500, 750}) end
 
-    -- 3. Второй Beetroot
+    -- 🥬 Второй beetroot
     waitForCash(200)
     local beet2 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-69.7396, -29.5228, 226.1392))
     if beet2 then upgradeAtCash(beet2, {250, 500, 750}) end
 
-    -- 4-6. Beehives
+    -- 🥬 Третий beetroot (новый!)
+    waitForCash(200)
+    local beet3 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-69.1002, -29.5228, 205.2426))
+    if beet3 then upgradeAtCash(beet3, {250, 500, 750}) end
+
+    -- 🍯 Первый beehive
     waitForCash(2500)
     local bh1 = placeUnitAndGetId("unit_beehive", Vector3.new(-91.5276, -28.9081, 210.0433))
-    if bh1 then upgradeAtCash(bh1, {1500, 4000, 10000, 25000}, function(step)
-        if step == 1 then
-            autoSkipEnabled = true -- теперь автоскип включается здесь
-        end
-    end) end
+    if bh1 then upgradeAtCash(bh1, {1500}, function(step)
+        if step == 1 then autoSkipEnabled = true end
+    end)
+    upgradeAtCash(bh1, {4000, 10000, 25000}) end
 
+    -- 🍯 Второй beehive
     wait(1)
     waitForCash(2500)
     local bh2 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.2081, -28.9081, 205.2484))
     if bh2 then upgradeAtCash(bh2, {1500, 4000, 10000, 25000}) end
 
+    -- 🍯 Третий beehive
     waitForCash(2500)
     local bh3 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.9386, -28.9081, 190.8840))
     if bh3 then upgradeAtCash(bh3, {1500, 4000, 10000, 25000}) end
 
-    -- 7–10. Big Mushrooms
+    -- 🍄 4 Big Mushrooms
     local mushPos = {
         Vector3.new(-70.8455, -27.5161, 207.9814),
         Vector3.new(-76.7063, -27.5161, 212.7099),
@@ -177,7 +167,7 @@ local function runMatch()
     while not restarting do wait(1) end
 end
 
--- 🚀 Главный цикл
+-- 🔁 Главный бесконечный цикл
 while true do
     runMatch()
 end
