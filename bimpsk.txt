@@ -1,5 +1,4 @@
--- 🔁 УЛЬТРА-ЛЁГКИЙ АВТОФАРМ: Beetroot → Апгрейды → Автоскип → Рестарт
-
+-- 🔁 ОПТИМИЗИРОВАННЫЙ АВТОФАРМ: 2 Beetroot + AutoSkip + Heartbeat + UI + Оптимизация
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,7 +10,7 @@ local cash
 local restarting = false
 local autoSkip = false
 
--- 💰 Чтение и ожидание Cash
+-- 💰 Парсинг денег
 local function parseCash(val)
     val = tostring(val or "0"):gsub(",", "")
     if val:lower():find("k") then return tonumber(val:lower():gsub("k", "")) * 1000 end
@@ -45,19 +44,20 @@ local function placeUnit(unitName, pos)
             end
         end
     end
+    warn("❌ Не удалось поставить юнита:", unitName)
     return nil
 end
 
--- ⬆️ Апгрейд
-local function upgradeAtCash(unitId, costs)
-    for _, cost in ipairs(costs) do
+-- ⬆️ Апгрейды
+local function upgradeAtCash(unitId, steps)
+    for _, cost in ipairs(steps) do
         waitForCash(cost)
         if restarting then return end
         ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
     end
 end
 
--- 🧠 Выбор сложности Impossible
+-- 🧠 Автовыбор сложности
 local function voteImpossible()
     task.spawn(function()
         while true do
@@ -74,7 +74,7 @@ local function voteImpossible()
     end)
 end
 
--- 🔁 Restart при проигрыше
+-- 🔁 Restart
 task.spawn(function()
     while true do
         RunService.Heartbeat:Wait()
@@ -94,7 +94,7 @@ task.spawn(function()
     end
 end)
 
--- ⏩ Автоскип волн
+-- ⏩ Автоскип
 task.spawn(function()
     while true do
         RunService.Heartbeat:Wait()
@@ -104,30 +104,20 @@ task.spawn(function()
     end
 end)
 
--- 🔇 Отключение визуала
-local function reduceLag()
-    -- Удалить UI
-    pcall(function() gui:Destroy() end)
-
-    -- Скрыть эффекты
+-- 🌀 Оптимизация визуала (но НЕ UI)
+task.spawn(function()
     for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
+        if obj:IsA("ParticleEmitter") or obj:IsA("Beam") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") then
             obj.Enabled = false
-        elseif obj:IsA("Decal") then
-            obj.Transparency = 1
+        elseif obj:IsA("PointLight") or obj:IsA("SurfaceLight") or obj:IsA("SpotLight") then
+            obj.Enabled = false
         elseif obj:IsA("Sound") then
-            obj.Volume = 0
+            obj:Stop()
         end
     end
+end)
 
-    -- Убрать освещение
-    local lighting = game:GetService("Lighting")
-    lighting.GlobalShadows = false
-    lighting.FogEnd = 1000000
-    lighting.Brightness = 0
-end
-
--- 🔁 Один цикл
+-- 🔁 Один матч
 local function run()
     RunService.Heartbeat:Wait()
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
@@ -135,7 +125,6 @@ local function run()
     waitForCashSystem()
     restarting = false
     autoSkip = false
-    reduceLag()
 
     -- Телепорт
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -143,25 +132,25 @@ local function run()
         root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897)
     end
 
-    -- 1. Первый Beetroot
+    -- 🥬 Первый Beetroot
     waitForCash(200)
-    if restarting then return end
     local id1 = placeUnit("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
     if id1 then
         autoSkip = true
         upgradeAtCash(id1, {250, 500, 750})
     end
 
-    -- 2. Второй Beetroot
+    -- 🥬 Второй Beetroot
     waitForCash(200)
-    if restarting then return end
     local id2 = placeUnit("unit_electric_beetroot", Vector3.new(-105.2417, -29.5228, 221.2254))
-    if id2 then upgradeAtCash(id2, {250, 500, 750}) end
+    if id2 then
+        upgradeAtCash(id2, {250, 500, 750})
+    end
 
     while not restarting do RunService.Heartbeat:Wait() end
 end
 
--- 🔁 Запуск
+-- 🚀 Цикл
 while true do
     run()
 end
