@@ -26,7 +26,7 @@ local function waitForCash(amount)
     repeat task.wait(0.1) until parseCash(cash.Value) >= amount or restarting
 end
 
--- 📦 Надёжная установка юнита
+-- 📦 Установка юнита
 local function placeUnit(unitName, pos)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
@@ -48,7 +48,7 @@ local function placeUnit(unitName, pos)
     return false
 end
 
--- 🧠 Голосуем Impossible
+-- 🧠 Автовыбор сложности
 local function voteImpossible()
     task.spawn(function()
         while true do
@@ -65,7 +65,7 @@ local function voteImpossible()
     end)
 end
 
--- 🔁 Restart при проигрыше/конце
+-- 🔁 Restart при Game Over
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -85,7 +85,7 @@ task.spawn(function()
     end
 end)
 
--- ⏩ Автоскип волн
+-- ⏩ Автоскип
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -104,9 +104,15 @@ local function run()
     restarting = false
     autoSkip = false
 
+    -- 🧍 Телепорт до начала
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897)
+    end
+
+    -- 🥬 Beetroot
     waitForCash(200)
     if restarting then return end
-
     local placed = placeUnit("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
     if placed then
         autoSkip = true
@@ -115,7 +121,7 @@ local function run()
     while not restarting do task.wait(0.1) end
 end
 
--- ♻️ Главный бесконечный цикл
+-- 🚀 ЦИКЛ
 while true do
     run()
 end
