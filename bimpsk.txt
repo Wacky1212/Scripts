@@ -1,45 +1,39 @@
--- 🔁 АВТОФАРМ: надёжный, автоскип после апгрейда Beehive
+-- 🔁 СТАБИЛЬНЫЙ АВТОФАРМ С УМНЫМ АВТОСКИПОМ
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
 local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
-local restarting = false
-local autoSkipEnabled = false
-local cash
 
--- 💰 Безопасная конвертация
+local restarting = false
+local autoSkipDelay = nil
+local cash = nil
+
+-- 💰 Безопасная проверка денег
 local function parseCash(val)
     if not val or type(val) ~= "string" and type(val) ~= "number" then return 0 end
     val = tostring(val):gsub(",", "")
-    if val:lower():find("k") then
-        local num = tonumber(val:lower():gsub("k", ""))
-        return (num or 0) * 1000
-    end
+    if val:lower():find("k") then return tonumber(val:lower():gsub("k", "")) * 1000 end
     return tonumber(val) or 0
 end
 
--- ⏳ Ждём денег
-local function waitForCash(amount)
-    repeat wait(0.1) until restarting or (cash and parseCash(cash.Value) >= amount)
-end
-
--- ✅ Ждём появление leaderstats → cash
-local function waitForCashSystemReady()
+local function waitForCashSystem()
     repeat wait(0.1) until player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Cash")
     cash = player.leaderstats.Cash
+end
+
+local function waitForCash(amount)
+    repeat wait(0.1) until restarting or (cash and parseCash(cash.Value) >= amount)
 end
 
 -- 📦 Установка юнита
 local function placeUnitAndGetId(unitName, pos)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
-
     local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(180), 0)
     ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
         Valid = true, Position = pos, CF = cf, Rotation = 180
     })
-
     for _ = 1, 50 do
         wait(0.1)
         for _, v in pairs(entityFolder:GetChildren()) do
@@ -51,31 +45,33 @@ local function placeUnitAndGetId(unitName, pos)
     return nil
 end
 
--- ⬆️ Апгрейды
-local function upgradeAtCash(unitId, upgradeSteps, onStep)
-    for i, cost in ipairs(upgradeSteps) do
+-- ⬆️ Апгрейд
+local function upgradeAtCash(id, upgrades, onStep, safeWait)
+    for i, cost in ipairs(upgrades) do
         waitForCash(cost)
         if restarting then return end
-        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
+        if safeWait then wait(1) end -- полезно для грибов
+        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(id)
         if onStep then onStep(i) end
     end
 end
 
--- 🚀 Автоскип
+-- ⏩ Автоскип логика
 task.spawn(function()
     while true do
-        wait(1)
-        if autoSkipEnabled and not restarting then
+        wait(autoSkipDelay or 999)
+        if autoSkipDelay and not restarting then
             ReplicatedStorage.RemoteFunctions.SkipWave:InvokeServer("y")
         end
     end
 end)
 
--- 🧠 Голосование
+-- ☑️ Голосование сложности
 local function voteImpossible()
     task.spawn(function()
         while true do
             wait(0.1)
+            waitForCashSystem()
             local ui = gui:FindFirstChild("GameGui")
                 and gui.GameGui.Screen
                 and gui.GameGui.Screen.Middle
@@ -88,7 +84,7 @@ local function voteImpossible()
     end)
 end
 
--- 🔁 Restart по кнопке
+-- 🔁 Restart при проигрыше/победе
 task.spawn(function()
     while true do
         wait(1)
@@ -108,79 +104,82 @@ task.spawn(function()
     end
 end)
 
--- 🧱 Основной матч
+-- 🎯 Один матч
 local function runMatch()
     wait(1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
     voteImpossible()
-    waitForCashSystemReady()
+    waitForCashSystem()
     restarting = false
-    autoSkipEnabled = false
+    autoSkipDelay = nil
 
     -- Телепорт
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if root then root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897) end
 
-    -- 🌳 1. Денежное дерево (без апгрейдов)
+    -- 1. Деньги дерево
     waitForCash(400)
     placeUnitAndGetId("unit_money_tree", Vector3.new(-99.5573, -27.8982, 198.4464))
 
-    -- 🥬 2. Первый Beetroot
+    -- 2. Beetroot 1
     waitForCash(200)
-    local beet1 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
-    if beet1 then upgradeAtCash(beet1, {250, 500, 750}) end
-
-    -- 🥬 3. Второй Beetroot
-    waitForCash(200)
-    local beet2 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-69.7396, -29.5228, 226.1392))
-    if beet2 then upgradeAtCash(beet2, {250, 500, 750}) end
-
-    -- 🥬 4. Третий Beetroot
-    waitForCash(200)
-    local beet3 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-69.1002, -29.5228, 205.2425))
-    if beet3 then upgradeAtCash(beet3, {250, 500, 750}) end
-
-    -- 🐝 5. Первый Beehive
-    waitForCash(2500)
-    local bh1 = placeUnitAndGetId("unit_beehive", Vector3.new(-91.5276, -28.9081, 210.0433))
-    if bh1 then
-        upgradeAtCash(bh1, {1500, 4000, 10000, 25000}, function(step)
+    local b1 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
+    if b1 then
+        upgradeAtCash(b1, {250, 500, 750}, function(step)
             if step == 1 then
-                autoSkipEnabled = true -- ⏩ включить автоскип
+                autoSkipDelay = 5 -- ⏩ первый временный автоскип
             end
         end)
     end
 
-    -- 🐝 6. Второй Beehive
+    -- 3. Beetroot 2
+    waitForCash(200)
+    local b2 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-69.7396, -29.5228, 226.1392))
+    if b2 then upgradeAtCash(b2, {250, 500, 750}) end
+
+    -- 4. Beetroot 3
+    waitForCash(200)
+    local b3 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-69.1002, -29.5228, 205.2425))
+    if b3 then upgradeAtCash(b3, {250, 500, 750}) end
+
+    -- 5. Beehive 1
+    waitForCash(2500)
+    local h1 = placeUnitAndGetId("unit_beehive", Vector3.new(-91.5276, -28.9081, 210.0433))
+    if h1 then
+        upgradeAtCash(h1, {1500, 4000, 10000, 25000}, function(step)
+            if step == 1 then
+                autoSkipDelay = 2 -- ⏩ постоянный автоскип после beehive
+            end
+        end)
+    end
+
+    -- 6. Beehive 2
     wait(1)
     waitForCash(2500)
-    local bh2 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.2081, -28.9081, 205.2484))
-    if bh2 then upgradeAtCash(bh2, {1500, 4000, 10000, 25000}) end
+    local h2 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.2081, -28.9081, 205.2484))
+    if h2 then upgradeAtCash(h2, {1500, 4000, 10000, 25000}) end
 
-    -- 🐝 7. Третий Beehive
+    -- 7. Beehive 3
     waitForCash(2500)
-    local bh3 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.9386, -28.9081, 190.8840))
-    if bh3 then upgradeAtCash(bh3, {1500, 4000, 10000, 25000}) end
+    local h3 = placeUnitAndGetId("unit_beehive", Vector3.new(-86.9386, -28.9081, 190.8840))
+    if h3 then upgradeAtCash(h3, {1500, 4000, 10000, 25000}) end
 
-    -- 🍄 8–11. Грибы
+    -- 8–11. Грибы
     local mushPos = {
         Vector3.new(-70.8455, -27.5161, 207.9814),
         Vector3.new(-76.7063, -27.5161, 212.7099),
         Vector3.new(-83.4403, -27.5161, 205.4651),
         Vector3.new(-68.7585, -27.5161, 216.4131),
     }
-
     for _, pos in ipairs(mushPos) do
         waitForCash(3000)
         local id = placeUnitAndGetId("unit_big_mushroom", pos)
-        if id then upgradeAtCash(id, {6000, 7500, 12500, 20000}) end
+        if id then upgradeAtCash(id, {6000, 7500, 12500, 20000}, nil, true) end
         if restarting then return end
     end
 
     while not restarting do wait(1) end
 end
 
--- 🔁 ЦИКЛ
-while true do
-    runMatch()
-end
+-- 🔁 Главный цикл
+while true do runMatch() end
