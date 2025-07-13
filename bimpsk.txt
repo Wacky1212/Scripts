@@ -1,4 +1,4 @@
--- 🔁 УПРОЩЁННЫЙ АВТОФАРМ: Restart → Impossible → 2x Beetroot → Апгрейд → Автоскип → Restart
+-- 🔁 УПРОЩЁННЫЙ АВТОФАРМ: Restart → Impossible → Beetroot x2 (с апгрейдами) → Автоскип → Restart + удаление врагов
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -9,23 +9,6 @@ local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 local cash
 local restarting = false
 local autoSkip = false
-
--- ⚙️ Очистка визуальных эффектов
-local function clearVisualLag()
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") then
-            obj.Enabled = false
-        elseif obj:IsA("Beam") then
-            obj.Width0 = 0
-            obj.Width1 = 0
-        elseif obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
-            obj.Enabled = false
-        elseif obj:IsA("Sound") then
-            obj:Stop()
-            obj.Volume = 0
-        end
-    end
-end
 
 -- 💰 Чтение и ожидание Cash
 local function parseCash(val)
@@ -43,8 +26,8 @@ local function waitForCash(amount)
     repeat task.wait(0.1) until parseCash(cash.Value) >= amount or restarting
 end
 
--- 📦 Установка юнита
-local function placeUnit(unitName, pos)
+-- 📦 Установка юнита и возврат ID
+local function placeUnitAndGetId(unitName, pos)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
 
@@ -61,27 +44,28 @@ local function placeUnit(unitName, pos)
             end
         end
     end
+    warn("❌ Не удалось поставить юнита:", unitName)
     return nil
 end
 
--- ⬆️ Апгрейды
-local function upgradeAtCash(unitId, upgradeSteps)
-    for _, cost in ipairs(upgradeSteps) do
+-- ⬆️ Апгрейд юнита
+local function upgradeAtCash(unitId, steps)
+    for _, cost in ipairs(steps) do
         waitForCash(cost)
         if restarting then return end
         ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
     end
 end
 
--- 🧠 Автовыбор сложности Impossible
+-- 🧠 Автовыбор сложности
 local function voteImpossible()
     task.spawn(function()
         while true do
             task.wait(0.1)
             local ui = gui:FindFirstChild("GameGui")
-            and gui.GameGui.Screen
-            and gui.GameGui.Screen.Middle
-            and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
+                and gui.GameGui.Screen
+                and gui.GameGui.Screen.Middle
+                and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
             if ui and ui.Visible then
                 ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_impossible")
                 break
@@ -89,26 +73,6 @@ local function voteImpossible()
         end
     end)
 end
-
--- 🔁 Restart при Game Over
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        local btn = gui:FindFirstChild("GameGui")
-        and gui.GameGui.Screen
-        and gui.GameGui.Screen.Middle
-        and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
-        and gui.GameGui.Screen.Middle.GameEnd.Items
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
-        if btn and btn.Visible then
-            restarting = true
-            ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-        end
-    end
-end)
 
 -- ⏩ Автоскип волн
 task.spawn(function()
@@ -120,7 +84,36 @@ task.spawn(function()
     end
 end)
 
--- 🔁 Один цикл
+-- 🔁 Restart при проигрыше
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        local btn = gui:FindFirstChild("GameGui")
+            and gui.GameGui.Screen
+            and gui.GameGui.Screen.Middle
+            and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
+            and gui.GameGui.Screen.Middle.GameEnd.Items
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
+        if btn and btn.Visible then
+            restarting = true
+            ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
+        end
+    end
+end)
+
+-- 🧹 Удаление врагов
+local function removeEnemies()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("Model") and v.Name:lower():sub(1, 6) == "enemy_" then
+            v:Destroy()
+        end
+    end
+end
+
+-- 🔁 Один матч
 local function run()
     task.wait(0.1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
@@ -128,25 +121,27 @@ local function run()
     waitForCashSystem()
     restarting = false
     autoSkip = false
-    clearVisualLag()
 
     -- Телепорт
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if root then root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897) end
 
-    -- Первый Beetroot
+    -- Удаляем врагов
+    removeEnemies()
+
+    -- 1. Первый Beetroot
     waitForCash(200)
     if restarting then return end
-    local id1 = placeUnit("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
+    local id1 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
     if id1 then
         autoSkip = true
         upgradeAtCash(id1, {250, 500, 750})
     end
 
-    -- Второй Beetroot
+    -- 2. Второй Beetroot
     waitForCash(200)
     if restarting then return end
-    local id2 = placeUnit("unit_electric_beetroot", Vector3.new(-105.2417, -29.5228, 221.2254))
+    local id2 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-105.2417, -29.5228, 221.2254))
     if id2 then
         upgradeAtCash(id2, {250, 500, 750})
     end
@@ -154,7 +149,7 @@ local function run()
     while not restarting do task.wait(0.1) end
 end
 
--- 🚀 Цикл бесконечный
+-- 🔁 Главный ЦИКЛ
 while true do
     run()
 end
