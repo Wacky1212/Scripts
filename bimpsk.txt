@@ -1,29 +1,32 @@
--- 🔁 УЛЬТРА-ПРОСТОЙ БЫСТРЫЙ СКРИПТ: Restart → Impossible → Beetroot → Автоскип → Restart
+-- 🔁 УПРОЩЁННЫЙ АВТОФАРМ: Restart → Impossible → Beetroot → Автоскип → Restart
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
-local cash = player:WaitForChild("leaderstats"):WaitForChild("Cash")
 local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 
+local cash
 local restarting = false
 local autoSkip = false
 
--- 💰 Деньги
+-- 💰 Чтение и ожидание Cash
 local function parseCash(val)
     val = tostring(val or "0"):gsub(",", "")
-    if val:lower():find("k") then
-        return tonumber(val:lower():gsub("k", "")) * 1000
-    end
+    if val:lower():find("k") then return tonumber(val:lower():gsub("k", "")) * 1000 end
     return tonumber(val) or 0
+end
+
+local function waitForCashSystem()
+    repeat task.wait(0.1) until player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Cash")
+    cash = player.leaderstats.Cash
 end
 
 local function waitForCash(amount)
     repeat task.wait(0.1) until parseCash(cash.Value) >= amount or restarting
 end
 
--- 📦 Ставим юнит
+-- 📦 Надёжная установка юнита
 local function placeUnit(unitName, pos)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
@@ -37,13 +40,15 @@ local function placeUnit(unitName, pos)
         task.wait(0.1)
         for _, v in pairs(entityFolder:GetChildren()) do
             if not before[v] and v:IsA("Model") and v:GetAttribute("ID") then
-                return
+                return true
             end
         end
     end
+    warn("❌ Не удалось поставить юнита:", unitName)
+    return false
 end
 
--- ☑️ Голосуем Impossible
+-- 🧠 Голосуем Impossible
 local function voteImpossible()
     task.spawn(function()
         while true do
@@ -60,7 +65,7 @@ local function voteImpossible()
     end)
 end
 
--- 🔁 Рестарт по кнопке
+-- 🔁 Restart при проигрыше/конце
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -80,7 +85,7 @@ task.spawn(function()
     end
 end)
 
--- 🚀 Автоскип волн (включается после установки beetroot)
+-- ⏩ Автоскип волн
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -90,24 +95,27 @@ task.spawn(function()
     end
 end)
 
--- 🔁 Один запуск
+-- 🔁 Один цикл
 local function run()
     task.wait(0.1)
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
     voteImpossible()
+    waitForCashSystem()
     restarting = false
     autoSkip = false
 
     waitForCash(200)
     if restarting then return end
 
-    placeUnit("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
-    autoSkip = true
+    local placed = placeUnit("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
+    if placed then
+        autoSkip = true
+    end
 
     while not restarting do task.wait(0.1) end
 end
 
--- ♾️ Главный цикл
+-- ♻️ Главный бесконечный цикл
 while true do
     run()
 end
