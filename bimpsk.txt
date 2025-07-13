@@ -1,9 +1,8 @@
--- 🔁 УПРОЩЁННЫЙ БЫСТРЫЙ АВТОФАРМ: Beetroot x2 → Апгрейды → Автоскип → Рестарт
+-- 🔁 УЛЬТРА-ЛЁГКИЙ АВТОФАРМ: Beetroot → Апгрейды → Автоскип → Рестарт → Удаление врагов
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
 local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
@@ -105,21 +104,17 @@ task.spawn(function()
     end
 end)
 
--- 🧹 Удаление визуального мусора (эффекты, звуки, свет) — GUI НЕ УДАЛЯЕТСЯ
-local function reduceLag()
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
-            obj.Enabled = false
-        elseif obj:IsA("Decal") then
-            obj.Transparency = 1
-        elseif obj:IsA("Sound") then
-            obj.Volume = 0
+-- 💣 Удаление врагов каждые 2 секунды
+task.spawn(function()
+    while true do
+        wait(2)
+        for _, v in pairs(entityFolder:GetChildren()) do
+            if v:IsA("Model") and v.Name:lower():find("enemy_") then
+                pcall(function() v:Destroy() end)
+            end
         end
     end
-    Lighting.GlobalShadows = false
-    Lighting.FogEnd = 1000000
-    Lighting.Brightness = 0
-end
+end)
 
 -- 🔁 Один цикл
 local function run()
@@ -129,7 +124,6 @@ local function run()
     waitForCashSystem()
     restarting = false
     autoSkip = false
-    reduceLag()
 
     -- Телепорт
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -150,14 +144,12 @@ local function run()
     waitForCash(200)
     if restarting then return end
     local id2 = placeUnit("unit_electric_beetroot", Vector3.new(-105.2417, -29.5228, 221.2254))
-    if id2 then
-        upgradeAtCash(id2, {250, 500, 750})
-    end
+    if id2 then upgradeAtCash(id2, {250, 500, 750}) end
 
     while not restarting do RunService.Heartbeat:Wait() end
 end
 
--- 🚀 Запуск
+-- 🔁 Запуск
 while true do
     run()
 end
