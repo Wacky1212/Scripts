@@ -1,4 +1,4 @@
--- 🔁 УПРОЩЁННЫЙ АВТОФАРМ: Restart → Impossible → Beetroot → Автоскип → Restart
+-- 🔁 УПРОЩЁННЫЙ АВТОФАРМ: Restart → Impossible → Beetroot → 3 апгрейда → Автоскип → Restart
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -27,7 +27,7 @@ local function waitForCash(amount)
 end
 
 -- 📦 Установка юнита
-local function placeUnit(unitName, pos)
+local function placeUnitAndGetId(unitName, pos)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
 
@@ -40,12 +40,21 @@ local function placeUnit(unitName, pos)
         task.wait(0.1)
         for _, v in pairs(entityFolder:GetChildren()) do
             if not before[v] and v:IsA("Model") and v:GetAttribute("ID") then
-                return true
+                return v:GetAttribute("ID")
             end
         end
     end
     warn("❌ Не удалось поставить юнита:", unitName)
-    return false
+    return nil
+end
+
+-- ⬆️ Апгрейд по шагам
+local function upgradeAtCash(unitId, upgradeSteps)
+    for _, cost in ipairs(upgradeSteps) do
+        waitForCash(cost)
+        if restarting then return end
+        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
+    end
 end
 
 -- 🧠 Автовыбор сложности
@@ -113,9 +122,10 @@ local function run()
     -- 🥬 Beetroot
     waitForCash(200)
     if restarting then return end
-    local placed = placeUnit("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
-    if placed then
+    local id = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
+    if id then
         autoSkip = true
+        upgradeAtCash(id, {250, 500, 750})
     end
 
     while not restarting do task.wait(0.1) end
