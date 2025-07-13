@@ -1,4 +1,4 @@
--- 🔁 УЛЬТРА-ОПТИМИЗИРОВАННЫЙ СКРИПТ: Beetroot → Апгрейды → Автоскип → Рестарт → Антилаг
+-- 🔁 ЛЁГКИЙ АВТОФАРМ: Beetroot → Апгрейды → Автоскип → Очистка лагов → Рестарт
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -105,35 +105,37 @@ task.spawn(function()
     end
 end)
 
--- 💣 Удаление врагов каждые 2 секунды
+-- 🧹 Удаление врагов каждые 0.5с
 task.spawn(function()
     while true do
-        wait(2)
-        for _, v in pairs(entityFolder:GetChildren()) do
-            if v:IsA("Model") and v.Name:lower():find("enemy_") then
-                pcall(function() v:Destroy() end)
+        wait(0.5)
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("Model") and v.Name:lower():find("enemy") then
+                v:Destroy()
             end
         end
     end
 end)
 
--- 🧹 Удаление визуальных эффектов
+-- ⚡ Очистка эффектов, частиц, света и т.д (разово)
 local function reduceLag()
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
-            obj.Enabled = false
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+        or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+            pcall(function() obj.Enabled = false end)
+        elseif obj:IsA("PointLight") or obj:IsA("SurfaceLight") or obj:IsA("SpotLight") then
+            pcall(function() obj.Enabled = false end)
         elseif obj:IsA("Decal") then
-            obj.Transparency = 1
-        elseif obj:IsA("Sound") then
-            obj.Volume = 0
-        elseif obj:IsA("Highlight") then
-            obj.Enabled = false
+            pcall(function() obj.Transparency = 1 end)
+        elseif obj:IsA("BasePart") and obj.Material == Enum.Material.Neon then
+            pcall(function() obj.Material = Enum.Material.Plastic end)
         end
     end
 
+    -- Освещение
     Lighting.GlobalShadows = false
+    Lighting.FogEnd = 1000000
     Lighting.Brightness = 0
-    Lighting.FogEnd = 999999
 end
 
 -- 🔁 Один цикл
@@ -170,7 +172,7 @@ local function run()
     while not restarting do RunService.Heartbeat:Wait() end
 end
 
--- 🚀 Запуск
+-- 🔁 Запуск
 while true do
     run()
 end
