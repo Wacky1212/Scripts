@@ -6,7 +6,7 @@ local gui = player:WaitForChild("PlayerGui")
 local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 local restarting = false
 local autoSkipEnabled = false
-local autoSkipDelay = 7
+local autoSkipDelay = 10
 local cash
 
 -- 💰 Безопасная конвертация
