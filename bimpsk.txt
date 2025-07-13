@@ -1,4 +1,4 @@
--- 🔁 УПРОЩЁННЫЙ АВТОФАРМ: Restart → Impossible → Beetroot → 3 апгрейда → Автоскип → Restart
+-- 🔁 АВТОФАРМ: Restart → Impossible → 2 Beetroot → Автоскип → Restart
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -26,7 +26,7 @@ local function waitForCash(amount)
     repeat task.wait(0.1) until parseCash(cash.Value) >= amount or restarting
 end
 
--- 📦 Установка юнита
+-- 📦 Установка юнита и возврат ID
 local function placeUnitAndGetId(unitName, pos)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
@@ -119,13 +119,21 @@ local function run()
         root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897)
     end
 
-    -- 🥬 Beetroot
+    -- 🥬 Первый Beetroot
     waitForCash(200)
     if restarting then return end
-    local id = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
-    if id then
-        autoSkip = true
-        upgradeAtCash(id, {250, 500, 750})
+    local id1 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
+    if id1 then
+        autoSkip = true -- включаем автоскип
+        upgradeAtCash(id1, {250, 500, 750})
+    end
+
+    -- 🥬 Второй Beetroot
+    waitForCash(200)
+    if restarting then return end
+    local id2 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-105.2417, -29.5228, 221.2255))
+    if id2 then
+        upgradeAtCash(id2, {250, 500, 750})
     end
 
     while not restarting do task.wait(0.1) end
