@@ -1,7 +1,8 @@
--- 🔁 АВТОФАРМ: Restart → Impossible → 2 Beetroot → Автоскип → Restart
+-- 🔁 УЛЬТРА-ЛЁГКИЙ АВТОФАРМ: Beetroot → Апгрейды → Автоскип → Рестарт
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
 local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
@@ -18,16 +19,16 @@ local function parseCash(val)
 end
 
 local function waitForCashSystem()
-    repeat task.wait(0.1) until player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Cash")
+    repeat RunService.Heartbeat:Wait() until player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Cash")
     cash = player.leaderstats.Cash
 end
 
 local function waitForCash(amount)
-    repeat task.wait(0.1) until parseCash(cash.Value) >= amount or restarting
+    repeat RunService.Heartbeat:Wait() until parseCash(cash.Value) >= amount or restarting
 end
 
--- 📦 Установка юнита и возврат ID
-local function placeUnitAndGetId(unitName, pos)
+-- 📦 Установка юнита
+local function placeUnit(unitName, pos)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
 
@@ -37,35 +38,34 @@ local function placeUnitAndGetId(unitName, pos)
     })
 
     for _ = 1, 50 do
-        task.wait(0.1)
+        RunService.Heartbeat:Wait()
         for _, v in pairs(entityFolder:GetChildren()) do
             if not before[v] and v:IsA("Model") and v:GetAttribute("ID") then
                 return v:GetAttribute("ID")
             end
         end
     end
-    warn("❌ Не удалось поставить юнита:", unitName)
     return nil
 end
 
--- ⬆️ Апгрейд по шагам
-local function upgradeAtCash(unitId, upgradeSteps)
-    for _, cost in ipairs(upgradeSteps) do
+-- ⬆️ Апгрейд
+local function upgradeAtCash(unitId, costs)
+    for _, cost in ipairs(costs) do
         waitForCash(cost)
         if restarting then return end
         ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
     end
 end
 
--- 🧠 Автовыбор сложности
+-- 🧠 Выбор сложности Impossible
 local function voteImpossible()
     task.spawn(function()
         while true do
-            task.wait(0.1)
+            RunService.Heartbeat:Wait()
             local ui = gui:FindFirstChild("GameGui")
-            and gui.GameGui.Screen
-            and gui.GameGui.Screen.Middle
-            and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
+                and gui.GameGui.Screen
+                and gui.GameGui.Screen.Middle
+                and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
             if ui and ui.Visible then
                 ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_impossible")
                 break
@@ -74,19 +74,19 @@ local function voteImpossible()
     end)
 end
 
--- 🔁 Restart при Game Over
+-- 🔁 Restart при проигрыше
 task.spawn(function()
     while true do
-        task.wait(0.1)
+        RunService.Heartbeat:Wait()
         local btn = gui:FindFirstChild("GameGui")
-        and gui.GameGui.Screen
-        and gui.GameGui.Screen.Middle
-        and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
-        and gui.GameGui.Screen.Middle.GameEnd.Items
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items
-        and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
+            and gui.GameGui.Screen
+            and gui.GameGui.Screen.Middle
+            and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
+            and gui.GameGui.Screen.Middle.GameEnd.Items
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items
+            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
         if btn and btn.Visible then
             restarting = true
             ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
@@ -94,52 +94,74 @@ task.spawn(function()
     end
 end)
 
--- ⏩ Автоскип
+-- ⏩ Автоскип волн
 task.spawn(function()
     while true do
-        task.wait(0.1)
+        RunService.Heartbeat:Wait()
         if autoSkip and not restarting then
             ReplicatedStorage.RemoteFunctions.SkipWave:InvokeServer("y")
         end
     end
 end)
 
+-- 🔇 Отключение визуала
+local function reduceLag()
+    -- Удалить UI
+    pcall(function() gui:Destroy() end)
+
+    -- Скрыть эффекты
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
+            obj.Enabled = false
+        elseif obj:IsA("Decal") then
+            obj.Transparency = 1
+        elseif obj:IsA("Sound") then
+            obj.Volume = 0
+        end
+    end
+
+    -- Убрать освещение
+    local lighting = game:GetService("Lighting")
+    lighting.GlobalShadows = false
+    lighting.FogEnd = 1000000
+    lighting.Brightness = 0
+end
+
 -- 🔁 Один цикл
 local function run()
-    task.wait(0.1)
+    RunService.Heartbeat:Wait()
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
     voteImpossible()
     waitForCashSystem()
     restarting = false
     autoSkip = false
+    reduceLag()
 
-    -- 🧍 Телепорт до начала
+    -- Телепорт
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if root then
         root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897)
     end
 
-    -- 🥬 Первый Beetroot
+    -- 1. Первый Beetroot
     waitForCash(200)
     if restarting then return end
-    local id1 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
+    local id1 = placeUnit("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
     if id1 then
-        autoSkip = true -- включаем автоскип
+        autoSkip = true
         upgradeAtCash(id1, {250, 500, 750})
     end
 
-    -- 🥬 Второй Beetroot
+    -- 2. Второй Beetroot
     waitForCash(200)
     if restarting then return end
-    local id2 = placeUnitAndGetId("unit_electric_beetroot", Vector3.new(-105.2417, -29.5228, 221.2255))
-    if id2 then
-        upgradeAtCash(id2, {250, 500, 750})
-    end
+    local id2 = placeUnit("unit_electric_beetroot", Vector3.new(-105.2417, -29.5228, 221.2254))
+    if id2 then upgradeAtCash(id2, {250, 500, 750}) end
 
-    while not restarting do task.wait(0.1) end
+    while not restarting do RunService.Heartbeat:Wait() end
 end
 
--- 🚀 ЦИКЛ
+-- 🔁 Запуск
 while true do
     run()
 end
