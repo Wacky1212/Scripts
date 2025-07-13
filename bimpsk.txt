@@ -1,8 +1,9 @@
--- 🔁 УЛЬТРА-ЛЁГКИЙ АВТОФАРМ: Beetroot → Апгрейды → Автоскип → Рестарт → Удаление врагов
+-- 🔁 УЛЬТРА-ОПТИМИЗИРОВАННЫЙ СКРИПТ: Beetroot → Апгрейды → Автоскип → Рестарт → Антилаг
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
 local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
@@ -116,6 +117,25 @@ task.spawn(function()
     end
 end)
 
+-- 🧹 Удаление визуальных эффектов
+local function reduceLag()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
+            obj.Enabled = false
+        elseif obj:IsA("Decal") then
+            obj.Transparency = 1
+        elseif obj:IsA("Sound") then
+            obj.Volume = 0
+        elseif obj:IsA("Highlight") then
+            obj.Enabled = false
+        end
+    end
+
+    Lighting.GlobalShadows = false
+    Lighting.Brightness = 0
+    Lighting.FogEnd = 999999
+end
+
 -- 🔁 Один цикл
 local function run()
     RunService.Heartbeat:Wait()
@@ -124,6 +144,7 @@ local function run()
     waitForCashSystem()
     restarting = false
     autoSkip = false
+    reduceLag()
 
     -- Телепорт
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -149,7 +170,7 @@ local function run()
     while not restarting do RunService.Heartbeat:Wait() end
 end
 
--- 🔁 Запуск
+-- 🚀 Запуск
 while true do
     run()
 end
