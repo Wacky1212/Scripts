@@ -1,4 +1,4 @@
--- 🔁 АВТОФАРМ: 5 Beetroot → 1 Mushroom → Апгрейды → Автоскип → Рестарт → Антилаг
+-- 🔁 ОПТИМИЗИРОВАННЫЙ АВТОФАРМ: 5 Beetroot → Апгрейды → Автоскип → Рестарт → Антилаг
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -75,7 +75,7 @@ local function voteImpossible()
     end)
 end
 
--- 🔁 Restart при Game Over
+-- 🔁 Restart при проигрыше
 task.spawn(function()
     while true do
         RunService.Heartbeat:Wait()
@@ -152,7 +152,7 @@ local function run()
         root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897)
     end
 
-    -- 🥬 Пять Beetroot'ов
+    -- 🥬 5 Beetroot'ов
     local beetCoords = {
         Vector3.new(-80.7722, -29.5228, 216.1696), -- 1
         Vector3.new(-81.7, -29.5228, 216.7),       -- 2
@@ -171,16 +171,10 @@ local function run()
         end
     end
 
-    -- 🍄 Гриб
-    waitForCash(3000)
-    if restarting then return end
-    local mushroom = placeUnit("unit_big_mushroom", Vector3.new(-80.806, -27.5161, 215.581))
-    if mushroom then upgradeAtCash(mushroom, {6000, 7500, 12500, 20000}) end
-
     while not restarting do RunService.Heartbeat:Wait() end
 end
 
--- 🚀 Цикл
+-- 🚀 Запуск
 while true do
     run()
 end
