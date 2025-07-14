@@ -1,4 +1,4 @@
--- 🔁 УЛЬТРА-ОПТИМИЗИРОВАННЫЙ СКРИПТ: 3 Beetroot → Mushroom → Апгрейды → Автоскип → Рестарт → Антилаг
+-- 🔁 АВТОФАРМ: 5 Beetroot → 1 Mushroom → Апгрейды → Автоскип → Рестарт → Антилаг
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local cash
 local restarting = false
 local autoSkip = false
 
--- 💰 Cash
+-- 💰 Чтение и ожидание Cash
 local function parseCash(val)
     val = tostring(val or "0"):gsub(",", "")
     if val:lower():find("k") then return tonumber(val:lower():gsub("k", "")) * 1000 end
@@ -58,7 +58,7 @@ local function upgradeAtCash(unitId, costs)
     end
 end
 
--- 🧠 Голосование Impossible
+-- 🧠 Выбор сложности Impossible
 local function voteImpossible()
     task.spawn(function()
         while true do
@@ -152,37 +152,35 @@ local function run()
         root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897)
     end
 
-    -- 🥬 1. Первый Beetroot
-    waitForCash(200)
-    if restarting then return end
-    local id1 = placeUnit("unit_electric_beetroot", Vector3.new(-80.7722, -29.5228, 216.1696))
-    if id1 then
-        autoSkip = true
-        upgradeAtCash(id1, {250, 500, 750})
+    -- 🥬 Пять Beetroot'ов
+    local beetCoords = {
+        Vector3.new(-80.7722, -29.5228, 216.1696), -- 1
+        Vector3.new(-81.7, -29.5228, 216.7),       -- 2
+        Vector3.new(-79.7, -29.5228, 215.7),       -- 3
+        Vector3.new(-82.1, -29.5228, 214.9),       -- 4
+        Vector3.new(-78.8, -29.5228, 217.2),       -- 5
+    }
+
+    for i, pos in ipairs(beetCoords) do
+        waitForCash(200)
+        if restarting then return end
+        local id = placeUnit("unit_electric_beetroot", pos)
+        if id then
+            if i == 1 then autoSkip = true end
+            upgradeAtCash(id, {250, 500, 750})
+        end
     end
 
-    -- 🥬 2. Второй Beetroot
-    waitForCash(200)
-    if restarting then return end
-    local id2 = placeUnit("unit_electric_beetroot", Vector3.new(-81.7, -29.5228, 216.7))
-    if id2 then upgradeAtCash(id2, {250, 500, 750}) end
-
-    -- 🥬 3. Третий Beetroot
-    waitForCash(200)
-    if restarting then return end
-    local id3 = placeUnit("unit_electric_beetroot", Vector3.new(-79.7, -29.5228, 215.7))
-    if id3 then upgradeAtCash(id3, {250, 500, 750}) end
-
-    -- 🍄 Гриб (mushroom)
+    -- 🍄 Гриб
     waitForCash(3000)
     if restarting then return end
-    local id4 = placeUnit("unit_big_mushroom", Vector3.new(-80.806, -27.5161, 215.581))
-    if id4 then upgradeAtCash(id4, {6000, 7500, 12500, 20000}) end
+    local mushroom = placeUnit("unit_big_mushroom", Vector3.new(-80.806, -27.5161, 215.581))
+    if mushroom then upgradeAtCash(mushroom, {6000, 7500, 12500, 20000}) end
 
     while not restarting do RunService.Heartbeat:Wait() end
 end
 
--- 🚀 Запуск
+-- 🚀 Цикл
 while true do
     run()
 end
