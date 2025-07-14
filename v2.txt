@@ -1,4 +1,4 @@
--- 🔁 УЛЬТРА-ОПТИМИЗИРОВАННЫЙ СКРИПТ: Beetroot ×2 → Mushroom → Апгрейды → Автоскип → Рестарт → Антилаг
+-- 🔁 УЛЬТРА-ОПТИМИЗИРОВАННЫЙ СКРИПТ: Beetroot → Апгрейды → Mushroom → Автоскип → Рестарт → Антилаг
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -130,6 +130,7 @@ local function reduceLag()
             obj.Enabled = false
         end
     end
+
     Lighting.GlobalShadows = false
     Lighting.Brightness = 0
     Lighting.FogEnd = 999999
@@ -151,27 +152,25 @@ local function run()
         root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897)
     end
 
-    local pos = Vector3.new(-80.7722, -29.5228, 216.1696)
-
     -- 1. Первый Beetroot
     waitForCash(200)
     if restarting then return end
-    local id1 = placeUnit("unit_electric_beetroot", pos)
+    local id1 = placeUnit("unit_electric_beetroot", Vector3.new(-80.7722, -29.5228, 216.1696))
     if id1 then
         autoSkip = true
         upgradeAtCash(id1, {250, 500, 750})
     end
 
-    -- 2. Второй Beetroot
+    -- 2. Второй Beetroot (рядом)
     waitForCash(200)
     if restarting then return end
-    local id2 = placeUnit("unit_electric_beetroot", pos)
+    local id2 = placeUnit("unit_electric_beetroot", Vector3.new(-81.7, -29.5228, 216.7)) -- чуть сдвинут
     if id2 then upgradeAtCash(id2, {250, 500, 750}) end
 
-    -- 3. Mushroom
+    -- 3. Mushroom (свободное место рядом)
     waitForCash(3000)
     if restarting then return end
-    local id3 = placeUnit("unit_big_mushroom", pos)
+    local id3 = placeUnit("unit_big_mushroom", Vector3.new(-80.806, -27.5161, 215.581))
     if id3 then upgradeAtCash(id3, {6000, 7500, 12500, 20000}) end
 
     while not restarting do RunService.Heartbeat:Wait() end
