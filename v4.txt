@@ -1,211 +1,125 @@
--- 🔁 ФИНАЛЬНЫЙ АВТОФАРМ: 3 Beetroot → 3 Beehive → 4 Mushrooms → Автоскип → Рестарт + Антилаг
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
-local player = Players.LocalPlayer
-local gui = player:WaitForChild("PlayerGui")
-local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
+-- 🔁 ОПТИМИЗИРОВАННЫЙ СКРИПТ: Money Tree → 3 Beetroot → 3 Beehive → TP → 4 Mushroom → 3 Pulse → 1 Sprinkler → Апгрейды
 
-local restarting = false
-local autoSkip = false
-local cash
+local ReplicatedStorage = game:GetService("ReplicatedStorage") local Players = game:GetService("Players") local RunService = game:GetService("RunService") local Lighting = game:GetService("Lighting") local player = Players.LocalPlayer local gui = player:WaitForChild("PlayerGui") local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 
--- 💰 Конвертация Cash
-local function parseCash(val)
-    val = tostring(val or "0"):gsub(",", "")
-    if val:lower():find("k") then return tonumber(val:lower():gsub("k", "")) * 1000 end
-    return tonumber(val) or 0
-end
+local cash local restarting = false
 
--- 💰 Ожидание появления и значения Cash
-local function waitForCashSystem()
-    repeat RunService.Heartbeat:Wait() until player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Cash")
-    cash = player.leaderstats.Cash
-end
+local function parseCash(val) val = tostring(val or "0"):gsub(",", "") if val:lower():find("k") then return tonumber(val:lower():gsub("k", "")) * 1000 end return tonumber(val) or 0 end
 
-local function waitForCash(amount)
-    repeat RunService.Heartbeat:Wait() until parseCash(cash.Value) >= amount or restarting
-end
+local function waitForCashSystem() repeat RunService.Heartbeat:Wait() until player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Cash") cash = player.leaderstats.Cash end
 
--- 📦 Установка юнита
-local function placeUnitAndGetId(unitName, pos)
-    local before = {}
-    for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
+local function waitForCash(amount) repeat RunService.Heartbeat:Wait() until parseCash(cash.Value) >= amount or restarting end
 
-    local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(180), 0)
-    ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
-        Valid = true, Position = pos, CF = cf, Rotation = 180
-    })
+local function placeUnit(unitName, pos) local before = {} for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
 
-    for _ = 1, 50 do
-        RunService.Heartbeat:Wait()
-        for _, v in pairs(entityFolder:GetChildren()) do
-            if not before[v] and v:IsA("Model") and v:GetAttribute("ID") then
-                return v:GetAttribute("ID")
-            end
-        end
-    end
-    return nil
-end
+local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(180), 0)
+ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
+    Valid = true, Position = pos, CF = cf, Rotation = 180
+})
 
--- ⬆️ Апгрейды
-local function upgradeAtCash(unitId, steps, onStep)
-    for i, cost in ipairs(steps) do
-        waitForCash(cost)
-        if restarting then return end
-        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
-        if onStep then onStep(i) end
-    end
-end
-
--- 🧠 Выбор сложности
-local function voteImpossible()
-    task.spawn(function()
-        while true do
-            RunService.Heartbeat:Wait()
-            local ui = gui:FindFirstChild("GameGui")
-                and gui.GameGui.Screen
-                and gui.GameGui.Screen.Middle
-                and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote")
-            if ui and ui.Visible then
-                ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_impossible")
-                break
-            end
-        end
-    end)
-end
-
--- 🔁 Restart по кнопке
-task.spawn(function()
-    while true do
-        RunService.Heartbeat:Wait()
-        local btn = gui:FindFirstChild("GameGui")
-            and gui.GameGui.Screen
-            and gui.GameGui.Screen.Middle
-            and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
-            and gui.GameGui.Screen.Middle.GameEnd.Items
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
-        if btn and btn.Visible then
-            restarting = true
-            ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-        end
-    end
-end)
-
--- ⏩ Автоскип волн
-task.spawn(function()
-    while true do
-        RunService.Heartbeat:Wait()
-        if autoSkip and not restarting then
-            ReplicatedStorage.RemoteFunctions.SkipWave:InvokeServer("y")
-        end
-    end
-end)
-
--- 💣 Удаление врагов каждые 2 сек
-task.spawn(function()
-    while true do
-        wait(2)
-        for _, v in pairs(entityFolder:GetChildren()) do
-            if v:IsA("Model") and v.Name:lower():find("enemy_") then
-                pcall(function() v:Destroy() end)
-            end
-        end
-    end
-end)
-
--- 🧹 Антилаг
-local function reduceLag()
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Highlight") then
-            obj.Enabled = false
-        elseif obj:IsA("Decal") then
-            obj.Transparency = 1
-        elseif obj:IsA("Sound") then
-            obj.Volume = 0
-        end
-    end
-    Lighting.GlobalShadows = false
-    Lighting.Brightness = 0
-    Lighting.FogEnd = 999999
-end
-
--- 🔁 Один матч
-local function runMatch()
+for _ = 1, 50 do
     RunService.Heartbeat:Wait()
-    ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-    voteImpossible()
-    waitForCashSystem()
-    restarting = false
-    autoSkip = false
-    reduceLag()
-
-    -- Телепорт
-    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if root then root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897) end
-
-    -- 🌳 Money Tree (no upgrade)
-    waitForCash(400)
-    placeUnitAndGetId("unit_money_tree", Vector3.new(-99.5573, -27.8982, 198.4464))
-
-    -- 🥬 Beetroots
-    local beetCoords = {
-        Vector3.new(-92.6838, -29.5228, 225.8844),
-        Vector3.new(-69.7396, -29.5228, 226.1392),
-        Vector3.new(-69.1002, -29.5228, 205.2425),
-    }
-
-    for _, pos in ipairs(beetCoords) do
-        waitForCash(200)
-        local id = placeUnitAndGetId("unit_electric_beetroot", pos)
-        if id then upgradeAtCash(id, {250, 500, 750}) end
-        if restarting then return end
-    end
-
-    -- 🐝 Beehives
-    local beehiveCoords = {
-        Vector3.new(-91.5276, -28.9081, 210.0433),
-        Vector3.new(-86.2081, -28.9081, 205.2484),
-        Vector3.new(-86.9386, -28.9081, 190.8840),
-    }
-
-    for i, pos in ipairs(beehiveCoords) do
-        waitForCash(2500)
-        local id = placeUnitAndGetId("unit_beehive", pos)
-        if id then
-            upgradeAtCash(id, {1500, 4000, 10000, 25000}, function(step)
-                if i == 1 and step == 1 then
-                    autoSkip = true -- ⏩ автоскип после 1 апгрейда 1-го beehive
-                end
-            end)
+    for _, v in pairs(entityFolder:GetChildren()) do
+        if not before[v] and v:IsA("Model") and v:GetAttribute("ID") then
+            return v:GetAttribute("ID")
         end
-        if restarting then return end
     end
+end
+return nil
 
-    -- 🍄 Mushrooms
-    local mushPos = {
-        Vector3.new(-70.8455, -27.5161, 207.9814),
-        Vector3.new(-76.7063, -27.5161, 212.7099),
-        Vector3.new(-83.4403, -27.5161, 205.4651),
-        Vector3.new(-68.7585, -27.5161, 216.4131),
-    }
-
-    for _, pos in ipairs(mushPos) do
-        waitForCash(3000)
-        local id = placeUnitAndGetId("unit_big_mushroom", pos)
-        if id then upgradeAtCash(id, {6000, 7500, 12500, 20000}) end
-        if restarting then return end
-    end
-
-    -- Ждём рестарт
-    while not restarting do RunService.Heartbeat:Wait() end
 end
 
--- 🚀 Запуск
-while true do
-    runMatch()
+local function upgradeAtCash(unitId, costs) for _, cost in ipairs(costs) do waitForCash(cost) if restarting then return end ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId) RunService.Heartbeat:Wait() -- слегка подождать end end
+
+local function voteImpossible() task.spawn(function() while true do RunService.Heartbeat:Wait() local ui = gui:FindFirstChild("GameGui") and gui.GameGui.Screen and gui.GameGui.Screen.Middle and gui.GameGui.Screen.Middle:FindFirstChild("DifficultyVote") if ui and ui.Visible then ReplicatedStorage.RemoteFunctions.PlaceDifficultyVote:InvokeServer("dif_impossible") break end end end) end
+
+task.spawn(function() while true do RunService.Heartbeat:Wait() local btn = gui:FindFirstChild("GameGui") and gui.GameGui.Screen and gui.GameGui.Screen.Middle and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd") and gui.GameGui.Screen.Middle.GameEnd.Items and gui.GameGui.Screen.Middle.GameEnd.Items.Frame and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again") if btn and btn.Visible then restarting = true ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer() end end end)
+
+local function reduceLag() for _, obj in ipairs(workspace:GetDescendants()) do if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then obj.Enabled = false elseif obj:IsA("Decal") then obj.Transparency = 1 elseif obj:IsA("Sound") then obj.Volume = 0 elseif obj:IsA("Highlight") then obj.Enabled = false end end Lighting.GlobalShadows = false Lighting.Brightness = 0 Lighting.FogEnd = 999999 end
+
+local function run() RunService.Heartbeat:Wait() ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer() voteImpossible() waitForCashSystem() restarting = false reduceLag()
+
+local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+if root then
+    root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897)
 end
+
+waitForCash(400)
+placeUnit("unit_money_tree", Vector3.new(-99.5573, -27.8982, 198.4464))
+
+waitForCash(200)
+local b1 = placeUnit("unit_electric_beetroot", Vector3.new(-105.2417, -29.5228, 221.2254))
+if b1 then upgradeAtCash(b1, {250, 500, 750}) end
+
+waitForCash(200)
+local b2 = placeUnit("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
+if b2 then upgradeAtCash(b2, {250, 500, 750}) end
+
+waitForCash(200)
+local b3 = placeUnit("unit_electric_beetroot", Vector3.new(-70.1524, -29.5228, 225.6615))
+if b3 then upgradeAtCash(b3, {250, 500, 750}) end
+
+local beehivePos = {
+    Vector3.new(-91.5276, -28.9081, 210.0433),
+    Vector3.new(-86.2081, -28.9081, 205.2484),
+    Vector3.new(-86.9386, -28.9081, 190.8840),
+}
+
+for _, pos in ipairs(beehivePos) do
+    waitForCash(2500)
+    local id = placeUnit("unit_beehive", pos)
+    if id then upgradeAtCash(id, {1500, 4000, 10000, 25000}) end
+    if restarting then return end
+end
+
+if root then
+    root.CFrame = CFrame.new(-2.3747, -29.60407, 83.40391)
+end
+
+local start = tick()
+repeat RunService.Heartbeat:Wait() until tick() - start >= 2 or restarting
+
+local mushCoords = {
+    Vector3.new(-21.677, -27.5161, 70.3351),
+    Vector3.new(-22.677, -27.5161, 69.3351),
+    Vector3.new(-23.677, -27.5161, 68.3351),
+    Vector3.new(-24.677, -27.5161, 67.3351),
+}
+
+for _, pos in ipairs(mushCoords) do
+    waitForCash(3000)
+    local id = placeUnit("unit_big_mushroom", pos)
+    if id then upgradeAtCash(id, {6000, 7500, 12500, 20000}) end
+    if restarting then return end
+end
+
+-- 3 Pulse рядом с грибами (со смещением)
+local pulseOffsets = {
+    Vector3.new(0.5, -0.9, -5.0),
+    Vector3.new(1.0, -0.9, -6.0),
+    Vector3.new(1.5, -0.9, -7.0),
+}
+
+for i, offset in ipairs(pulseOffsets) do
+    local pos = mushCoords[i] + offset
+    waitForCash(5000)
+    local id = placeUnit("unit_pulse_plant", pos)
+    if id then
+        task.wait(0.2)
+        upgradeAtCash(id, {3000, 7500, 10000, 25000})
+    end
+    if restarting then return end
+end
+
+-- Sprinkler после Pulse
+local sprinklerPos = Vector3.new(-20.379, -29.604, 61.219)
+waitForCash(500)
+local sprinklerId = placeUnit("unit_sprinkler", sprinklerPos)
+if sprinklerId then upgradeAtCash(sprinklerId, {560, 750, 1000, 1300}) end
+
+while not restarting do RunService.Heartbeat:Wait() end
+
+end
+
+-- 🔁 Запуск цикла while true do run() end
+
