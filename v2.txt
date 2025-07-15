@@ -1,4 +1,4 @@
--- 🔁 ОПТИМИЗИРОВАННЫЙ АВТОФАРМ: 5 Beetroot → Апгрейды → Автоскип → Рестарт → Антилаг
+-- 🔁 ОПТИМИЗИРОВАННЫЙ СКРИПТ: Money Tree → 3 Beetroot → 3 Beehive → TP → 4 Mushroom → 3 Pulse Plant → Sprinkler → Апгрейды
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -10,9 +10,7 @@ local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 
 local cash
 local restarting = false
-local autoSkip = false
 
--- 💰 Чтение и ожидание Cash
 local function parseCash(val)
     val = tostring(val or "0"):gsub(",", "")
     if val:lower():find("k") then return tonumber(val:lower():gsub("k", "")) * 1000 end
@@ -28,7 +26,6 @@ local function waitForCash(amount)
     repeat RunService.Heartbeat:Wait() until parseCash(cash.Value) >= amount or restarting
 end
 
--- 📦 Установка юнита
 local function placeUnit(unitName, pos)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
@@ -49,7 +46,6 @@ local function placeUnit(unitName, pos)
     return nil
 end
 
--- ⬆️ Апгрейд
 local function upgradeAtCash(unitId, costs)
     for _, cost in ipairs(costs) do
         waitForCash(cost)
@@ -58,7 +54,6 @@ local function upgradeAtCash(unitId, costs)
     end
 end
 
--- 🧠 Выбор сложности Impossible
 local function voteImpossible()
     task.spawn(function()
         while true do
@@ -75,7 +70,6 @@ local function voteImpossible()
     end)
 end
 
--- 🔁 Restart при проигрыше
 task.spawn(function()
     while true do
         RunService.Heartbeat:Wait()
@@ -95,29 +89,6 @@ task.spawn(function()
     end
 end)
 
--- ⏩ Автоскип волн
-task.spawn(function()
-    while true do
-        RunService.Heartbeat:Wait()
-        if autoSkip and not restarting then
-            ReplicatedStorage.RemoteFunctions.SkipWave:InvokeServer("y")
-        end
-    end
-end)
-
--- 💣 Удаление врагов каждые 2 секунды
-task.spawn(function()
-    while true do
-        wait(2)
-        for _, v in pairs(entityFolder:GetChildren()) do
-            if v:IsA("Model") and v.Name:lower():find("enemy_") then
-                pcall(function() v:Destroy() end)
-            end
-        end
-    end
-end)
-
--- 🧹 Удаление визуальных эффектов
 local function reduceLag()
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
@@ -130,20 +101,17 @@ local function reduceLag()
             obj.Enabled = false
         end
     end
-
     Lighting.GlobalShadows = false
     Lighting.Brightness = 0
     Lighting.FogEnd = 999999
 end
 
--- 🔁 Один цикл
 local function run()
     RunService.Heartbeat:Wait()
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
     voteImpossible()
     waitForCashSystem()
     restarting = false
-    autoSkip = false
     reduceLag()
 
     -- Телепорт
@@ -152,29 +120,85 @@ local function run()
         root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897)
     end
 
-    -- 🥬 5 Beetroot'ов
-    local beetCoords = {
-        Vector3.new(-80.7722, -29.5228, 216.1696), -- 1
-        Vector3.new(-81.7, -29.5228, 216.7),       -- 2
-        Vector3.new(-79.7, -29.5228, 215.7),       -- 3
-        Vector3.new(-82.1, -29.5228, 214.9),       -- 4
-        Vector3.new(-78.8, -29.5228, 217.2),       -- 5
+    -- Money Tree
+    waitForCash(400)
+    placeUnit("unit_money_tree", Vector3.new(-99.5573, -27.8982, 198.4464))
+
+    -- 3 Beetroot
+    waitForCash(200)
+    local b1 = placeUnit("unit_electric_beetroot", Vector3.new(-105.2417, -29.5228, 221.2254))
+    if b1 then upgradeAtCash(b1, {250, 500, 750}) end
+
+    waitForCash(200)
+    local b2 = placeUnit("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
+    if b2 then upgradeAtCash(b2, {250, 500}) end
+
+    waitForCash(200)
+    local b3 = placeUnit("unit_electric_beetroot", Vector3.new(-70.1524, -29.5228, 225.6615))
+    if b3 then upgradeAtCash(b3, {250, 500, 750}) end
+
+    -- 3 Beehive
+    local beehivePos = {
+        Vector3.new(-91.5276, -28.9081, 210.0433),
+        Vector3.new(-86.2081, -28.9081, 205.2484),
+        Vector3.new(-86.9386, -28.9081, 190.8840),
     }
 
-    for i, pos in ipairs(beetCoords) do
-        waitForCash(200)
+    for _, pos in ipairs(beehivePos) do
+        waitForCash(2500)
+        local id = placeUnit("unit_beehive", pos)
+        if id then upgradeAtCash(id, {1500, 4000, 10000, 25000}) end
         if restarting then return end
-        local id = placeUnit("unit_electric_beetroot", pos)
-        if id then
-            if i == 1 then autoSkip = true end
-            upgradeAtCash(id, {250, 500, 750})
-        end
     end
+
+    -- Второй телепорт
+    if root then
+        root.CFrame = CFrame.new(-2.3747, -29.60407, 83.40391)
+    end
+
+    -- Пауза 2 секунды перед грибами
+    local start = tick()
+    repeat RunService.Heartbeat:Wait() until tick() - start >= 2 or restarting
+
+    -- 4 Mushroom
+    local mushCoords = {
+        Vector3.new(-21.677, -27.5161, 70.3351),
+        Vector3.new(-22.677, -27.5161, 69.3351),
+        Vector3.new(-23.677, -27.5161, 68.3351),
+        Vector3.new(-24.677, -27.5161, 67.3351),
+    }
+
+    for _, pos in ipairs(mushCoords) do
+        waitForCash(3000)
+        local id = placeUnit("unit_big_mushroom", pos)
+        if id then upgradeAtCash(id, {6000, 7500, 12500, 20000}) end
+        if restarting then return end
+    end
+
+    -- Pulse Plants после грибов
+    local pulseOffsets = {
+        Vector3.new(0, 0, -2),
+        Vector3.new(1, 0, -2),
+        Vector3.new(2, 0, -2),
+    }
+
+    for i, offset in ipairs(pulseOffsets) do
+        waitForCash(5000)
+        local basePos = mushCoords[i] or mushCoords[#mushCoords]
+        local pos = basePos + offset
+        local id = placeUnit("unit_pulse_plant", pos)
+        if id then upgradeAtCash(id, {3000, 7500, 10000, 25000}) end
+        if restarting then return end
+    end
+
+    -- Sprinkler после Pulse Plants
+    waitForCash(500)
+    local sprinklerPos = Vector3.new(-20.3795, -29.6041, 61.2196)
+    local sprinklerId = placeUnit("unit_sprinkler", sprinklerPos)
+    if sprinklerId then upgradeAtCash(sprinklerId, {560, 750, 1000, 1300}) end
 
     while not restarting do RunService.Heartbeat:Wait() end
 end
 
--- 🚀 Запуск
-while true do
-    run()
-end
+-- 🔁 Запуск цикла
+while true do run() end
