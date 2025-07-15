@@ -1,4 +1,4 @@
--- 🔁 ОПТИМИЗИРОВАННЫЙ СКРИПТ: Money Tree → 3 Beetroot → 3 Beehive → TP → 4 Mushroom → 3 Pulse Plant → Sprinkler → Апгрейды
+-- 🔁 ОПТИМИЗИРОВАННЫЙ СКРИПТ: Money Tree → 3 Beetroot → 3 Beehive → TP → 4 Mushroom → 3 Pulse → Sprinkler → Апгрейды
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -76,7 +76,7 @@ task.spawn(function()
         local btn = gui:FindFirstChild("GameGui")
             and gui.GameGui.Screen
             and gui.GameGui.Screen.Middle
-            and gui.GameGui.Screen.Middle:FindFirstChild("GameEnd")
+            and gui.GameGui.Screen.Middle.GameEnd
             and gui.GameGui.Screen.Middle.GameEnd.Items
             and gui.GameGui.Screen.Middle.GameEnd.Items.Frame
             and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions
@@ -131,7 +131,7 @@ local function run()
 
     waitForCash(200)
     local b2 = placeUnit("unit_electric_beetroot", Vector3.new(-92.6838, -29.5228, 225.8844))
-    if b2 then upgradeAtCash(b2, {250, 500}) end
+    if b2 then upgradeAtCash(b2, {250, 500, 750}) end -- ✅ Фикс
 
     waitForCash(200)
     local b3 = placeUnit("unit_electric_beetroot", Vector3.new(-70.1524, -29.5228, 225.6615))
@@ -151,12 +151,12 @@ local function run()
         if restarting then return end
     end
 
-    -- Второй телепорт
+    -- ВТОРОЙ телепорт
     if root then
         root.CFrame = CFrame.new(-2.3747, -29.60407, 83.40391)
     end
 
-    -- Пауза 2 секунды перед грибами
+    -- 🔁 Пауза 2 секунды перед грибами
     local start = tick()
     repeat RunService.Heartbeat:Wait() until tick() - start >= 2 or restarting
 
@@ -175,25 +175,24 @@ local function run()
         if restarting then return end
     end
 
-    -- Pulse Plants после грибов
+    -- 3 Pulse Plant (рядом с грибами)
     local pulseOffsets = {
-        Vector3.new(0, 0, -2),
-        Vector3.new(1, 0, -2),
-        Vector3.new(2, 0, -2),
+        Vector3.new(0.5, -0.9, -5.0),
+        Vector3.new(1.0, -0.9, -6.0),
+        Vector3.new(1.5, -0.9, -7.0),
     }
 
     for i, offset in ipairs(pulseOffsets) do
+        local pos = mushCoords[i] + offset
         waitForCash(5000)
-        local basePos = mushCoords[i] or mushCoords[#mushCoords]
-        local pos = basePos + offset
         local id = placeUnit("unit_pulse_plant", pos)
         if id then upgradeAtCash(id, {3000, 7500, 10000, 25000}) end
         if restarting then return end
     end
 
-    -- Sprinkler после Pulse Plants
+    -- Sprinkler после последнего Pulse
     waitForCash(500)
-    local sprinklerPos = Vector3.new(-20.3795, -29.6041, 61.2196)
+    local sprinklerPos = Vector3.new(-20.379, -29.604, 61.219)
     local sprinklerId = placeUnit("unit_sprinkler", sprinklerPos)
     if sprinklerId then upgradeAtCash(sprinklerId, {560, 750, 1000, 1300}) end
 
