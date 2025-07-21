@@ -1,4 +1,4 @@
--- 🔁 ОПТИМИЗИРОВАННЫЙ СКРИПТ: Money Tree → 3 Beetroot → 3 Beehive → TP → 4 Mushroom → 3 Pulse → Sprinkler → 2 Dual Blossom → Апгрейды
+-- 🔁 ОБНОВЛЁННЫЙ СКРИПТ С НОВЫМ ТЕЛЕПОРТОМ И ДВУМЯ LUCKY PLANT
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -14,7 +14,6 @@ local restarting = false
 local function parseCash(val)
     val = tostring(val or "0"):gsub(",", ""):lower()
     val = val:match("[0-9%.]*k?") or "0"
-
     if val:find("k") then
         local numberPart = tonumber(val:gsub("k", ""))
         if numberPart then
@@ -23,7 +22,6 @@ local function parseCash(val)
             return 0
         end
     end
-
     return tonumber(val) or 0
 end
 
@@ -39,12 +37,10 @@ end
 local function placeUnit(unitName, pos)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
-
     local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(180), 0)
     ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
         Valid = true, Position = pos, CF = cf, Rotation = 180
     })
-
     for _ = 1, 50 do
         RunService.Heartbeat:Wait()
         for _, v in pairs(entityFolder:GetChildren()) do
@@ -127,9 +123,7 @@ local function run()
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if root then root.CFrame = CFrame.new(-80.85776, -29.52275, 215.46897) end
 
-    waitForCash(400)
-    placeUnit("unit_money_tree", Vector3.new(-99.5573, -27.8982, 198.4464))
-
+    -- 🥬 Beetroots
     waitForCash(200)
     local b1 = placeUnit("unit_electric_beetroot", Vector3.new(-105.2417, -29.5228, 221.2254))
     if b1 then upgradeAtCash(b1, {250, 500, 750}) end
@@ -142,20 +136,36 @@ local function run()
     local b3 = placeUnit("unit_electric_beetroot", Vector3.new(-70.1524, -29.5228, 225.6615))
     if b3 then upgradeAtCash(b3, {250, 500, 750}) end
 
-    local beehivePos = {
-        Vector3.new(-91.5276, -28.9081, 210.0433),
-        Vector3.new(-86.2081, -28.9081, 205.2484),
-        Vector3.new(-86.9386, -28.9081, 190.8840),
+    -- 📍 Новый телепорт после последнего Beetroot
+    if root then root.CFrame = CFrame.new(-29.1573, -29.6041, 49.5348) end
+
+    -- 🐝 Beehives
+    local newBeehivePositions = {
+        Vector3.new(-65.7664, -28.9081, 98.0514),
+        Vector3.new(-59.5106, -28.9081, 97.5005),
+        Vector3.new(-53.1729, -28.9081, 102.7370),
     }
-    for _, pos in ipairs(beehivePos) do
+
+    for _, pos in ipairs(newBeehivePositions) do
         waitForCash(2500)
         local id = placeUnit("unit_beehive", pos)
         if id then upgradeAtCash(id, {1500, 4000, 10000, 25000}) end
         if restarting then return end
     end
 
-    if root then root.CFrame = CFrame.new(-59.34995, -29.52275, 102.71524) end
+    -- 🍀 Первый Lucky Plant
+    waitForCash(1500)
+    local lucky1 = placeUnit("unit_lucky_plant", Vector3.new(-61.5372, -29.5228, 106.7369))
+    if lucky1 then upgradeAtCash(lucky1, {3000, 4000, 7500, 15000}) end
+    if restarting then return end
 
+    -- 🍀 Второй Lucky Plant
+    waitForCash(1500)
+    local lucky2 = placeUnit("unit_lucky_plant", Vector3.new(-67.8058, -29.5228, 112.3958))
+    if lucky2 then upgradeAtCash(lucky2, {3000, 4000, 7500, 15000}) end
+    if restarting then return end
+
+    -- 🍄 Mushrooms
     local mushCoords = {
         Vector3.new(-65.4727, -27.5161, 118.2855),
         Vector3.new(-69.3593, -27.5161, 119.5750),
@@ -169,6 +179,7 @@ local function run()
         if restarting then return end
     end
 
+    -- ⚡ Pulse Plants
     local pulseCoords = {
         Vector3.new(-61.8215, -28.4230, 115.9347),
         Vector3.new(-70.7197, -28.4230, 117.1897),
@@ -181,6 +192,7 @@ local function run()
         if restarting then return end
     end
 
+    -- 🌸 Dual Blossom
     waitForCash(10000)
     local dual1 = placeUnit("unit_dual_blossom", Vector3.new(-71.1572, -28.4230, 109.5525))
     if dual1 then upgradeAtCash(dual1, {7500, 15000, 20000, 60000}) end
@@ -189,8 +201,9 @@ local function run()
     local dual2 = placeUnit("unit_dual_blossom", Vector3.new(-67.6817, -28.4230, 106.7466))
     if dual2 then upgradeAtCash(dual2, {7500, 15000, 20000, 60000}) end
 
+    -- 💧 Sprinkler
     waitForCash(500)
-    local sprinklerPos = Vector3.new(-56.2398681640625, -29.604076385498047, 111.99542236328125)
+    local sprinklerPos = Vector3.new(-56.2399, -29.6041, 111.9954)
     local sprinklerId = placeUnit("unit_sprinkler", sprinklerPos)
     if sprinklerId then upgradeAtCash(sprinklerId, {560, 750, 1000, 1300}) end
 
