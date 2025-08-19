@@ -1,4 +1,4 @@
--- 🔁 АВТО-СКРИПТ С НОВЫМИ ЮНИТАМИ (фикс CF и микро-пауза перед апгрейдами)
+-- 🔁 АВТО-СКРИПТ (фикс: надёжный захват ID сразу после плейсмента)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -45,33 +45,55 @@ end
 
 -- 📦 Плейс юнита (возвращает ID)
 local function placeUnit(unitName, pos, rotation)
+    -- снимок до
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
+
+    -- страховка через ChildAdded (на случай если дифф не поймает модель)
+    local capturedId = nil
+    local conn
+    conn = entityFolder.ChildAdded:Connect(function(child)
+        if capturedId or not child:IsA("Model") then return end
+        -- ждём, пока сервер навесит атрибут ID
+        for _ = 1, 120 do
+            local id = child:GetAttribute("ID")
+            if id then
+                capturedId = id
+                break
+            end
+            RunService.Heartbeat:Wait()
+        end
+    end)
 
     local cf = makeCF(pos, rotation)
     ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
         Valid = true, Position = pos, CF = cf, Rotation = rotation or 180
     })
 
-    -- Ждём появления нового Model с атрибутом ID
-    for _ = 1, 100 do
+    -- сначала пытаемся как в базовом скрипте — дифф по Entities
+    local foundId = nil
+    for _ = 1, 120 do
         RunService.Heartbeat:Wait()
         for _, v in pairs(entityFolder:GetChildren()) do
             if not before[v] and v:IsA("Model") then
                 local id = v:GetAttribute("ID")
                 if id then
-                    return id
+                    foundId = id
+                    break
                 end
             end
         end
+        if foundId then break end
+        if capturedId then foundId = capturedId break end
     end
-    return nil
+
+    if conn then conn:Disconnect() end
+    return foundId
 end
 
--- ⬆️ Апгрейды (с микро-паузой перед первым апгрейдом)
+-- ⬆️ Апгрейды (микро-пауза после плейсмента — чтобы сервер «подтянул» состояние)
 local function upgradeAtCash(unitId, costs)
     if not unitId then return end
-    -- микро-пауза после плейсмента (важно для первого юнита)
     RunService.Heartbeat:Wait()
     RunService.Heartbeat:Wait()
     for _, cost in ipairs(costs) do
@@ -149,8 +171,7 @@ local function run()
     ------------------------------------------------------------------------
     -- 🥬 Electric Beetroot (первый, без апгрейда за 1000)
     waitForCash(200)
-    local beet1pos = Vector3.new(-4.406354904174805, 1.9999998807907104, 345.56976318359375)
-    local beet1 = placeUnit("unit_electric_beetroot", beet1pos, 180)
+    local beet1 = placeUnit("unit_electric_beetroot", Vector3.new(-4.406354904174805, 1.9999998807907104, 345.56976318359375), 180)
     upgradeAtCash(beet1, {250, 500, 750})
 
     -- 🐝 Beehives
