@@ -1,4 +1,4 @@
--- 🔁 АВТО-СКРИПТ: более строгий выбор 'unit_' моделей после плейсмента
+-- == ПОЛНАЯ АВТОМАТИЗАЦИЯ (включает рестарт и выбор сложности dif_impossible) ==
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -11,7 +11,7 @@ local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 local cash
 local restarting = false
 
--- Парсинг денег
+-- Парсинг денег как в v4
 local function parseCash(val)
     val = tostring(val or "0"):gsub(",", ""):lower()
     val = val:match("[0-9%.]*k?") or "0"
@@ -33,7 +33,7 @@ local function waitForCash(amount)
     until parseCash(cash and cash.Value) >= amount or restarting
 end
 
--- Получение позиции модели (pivot или любая BasePart)
+-- Получение позиции модели
 local function modelPos(m)
     if not (m and m:IsA("Model")) then return nil end
     local ok, cf = pcall(function() return m:GetPivot() end)
@@ -42,7 +42,7 @@ local function modelPos(m)
     return part and part.Position or nil
 end
 
--- placeUnit: теперь фильтруем только 'unit_' модели и даём приоритет тем, где ID/Name содержит unitName
+-- placeUnit с фильтром unit_ и приоритетом по unitName
 local function placeUnit(unitName, pos, rotation)
     local before = {}
     for _, v in ipairs(entityFolder:GetChildren()) do before[v] = true end
@@ -52,57 +52,39 @@ local function placeUnit(unitName, pos, rotation)
         Valid = true, Position = pos, CF = cf, Rotation = rotation or 180
     })
 
-    local candidates = {}
-    local bestId = nil
-    local bestScore = math.huge
+    local bestId, bestScore = nil, math.huge
 
-    -- собираем кандидатов до ~4 секунд
     for _ = 1, 240 do
         RunService.Heartbeat:Wait()
         for _, v in ipairs(entityFolder:GetChildren()) do
             if not before[v] and v:IsA("Model") then
                 local id = v:GetAttribute("ID")
                 local name = v.Name or ""
-                -- рассматриваем только объекты, явно похожие на юнит: id или name начинаются с "unit_"
-                local idIsUnit = (type(id) == "string" and id:match("^unit_"))
-                local nameIsUnit = (type(name) == "string" and name:match("^unit_"))
-                if idIsUnit or nameIsUnit then
+                if (type(id)=="string" and id:match("^unit_")) or name:match("^unit_") then
                     local p = modelPos(v)
                     local d = p and (p - pos).Magnitude or 9999
-                    local containsUnitName = false
-                    if type(id) == "string" and id:find(unitName, 1, true) then containsUnitName = true end
-                    if not containsUnitName and type(name) == "string" and name:find(unitName, 1, true) then containsUnitName = true end
-                    -- score: ближе — лучше; если содержит unitName — огромный бонус (приоритет)
+                    local containsUnitName = (type(id)=="string" and id:find(unitName,1,true)) or (name:find(unitName,1,true))
                     local score = d + (containsUnitName and 0 or 1000)
                     if score < bestScore then
-                        bestScore = score
-                        bestId = id
+                        bestScore, bestId = score, id
                     end
-                    -- если нашли очень близкий и с совпадением имени — возвращаем сразу
                     if containsUnitName and d <= 8 and id then
                         return id
                     end
                 end
             end
         end
-        -- если нашли кандидата с ID — можно вернуть его раньше
-        if bestId and type(bestId) == "string" then
-            return bestId
-        end
+        if bestId then return bestId end
     end
 
-    -- последний шанс: если есть модель-кандидат без ID, попробуем дождаться ID у неё (по имени nearest)
-    -- проходим ещё раз и пытаемся получить ID у самых близких unit_ моделей
+    -- fallback: попробовать дождаться ID у unit_ моделей
     for _, v in ipairs(entityFolder:GetChildren()) do
-        if not before[v] and v:IsA("Model") then
-            local name = v.Name or ""
-            if name:match("^unit_") then
-                for _ = 1, 120 do
-                    RunService.Heartbeat:Wait()
-                    local id = v:GetAttribute("ID")
-                    if id and type(id) == "string" and id:match("^unit_") then
-                        return id
-                    end
+        if not before[v] and v:IsA("Model") and v.Name:match("^unit_") then
+            for _ = 1, 120 do
+                RunService.Heartbeat:Wait()
+                local id = v:GetAttribute("ID")
+                if id and type(id)=="string" and id:match("^unit_") then
+                    return id
                 end
             end
         end
@@ -111,12 +93,12 @@ local function placeUnit(unitName, pos, rotation)
     return nil
 end
 
--- Апгрейды (короткая пауза + увеличенное ожидание перед апгрейдом)
+-- upgradeAtCash за твой код
 local function upgradeAtCash(unitId, costs)
     if not unitId then return end
     RunService.Heartbeat:Wait()
     RunService.Heartbeat:Wait()
-    RunService.Heartbeat:Wait() -- чуть больше уверенности
+    RunService.Heartbeat:Wait()
     for _, cost in ipairs(costs) do
         waitForCash(cost)
         if restarting then return end
@@ -125,7 +107,7 @@ local function upgradeAtCash(unitId, costs)
     end
 end
 
--- Голосование Impossible
+-- автоматическое голосование за dif_impossible
 local function voteImpossible()
     task.spawn(function()
         while true do
@@ -142,27 +124,7 @@ local function voteImpossible()
     end)
 end
 
--- Авто-рестарт
-task.spawn(function()
-    while true do
-        RunService.Heartbeat:Wait()
-        local btn = gui:FindFirstChild("GameGui")
-            and gui.GameGui.Screen
-            and gui.GameGui.Screen.Middle
-            and gui.GameGui.Screen.Middle.GameEnd
-            and gui.GameGui.Screen.Middle.GameEnd.Items
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items
-            and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
-        if btn and btn.Visible then
-            restarting = true
-            ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
-        end
-    end
-end)
-
--- Анти-лаг
+-- функция снижения нагрузки (как у тебя)
 local function reduceLag()
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
@@ -180,8 +142,8 @@ local function reduceLag()
     Lighting.FogEnd = 999999
 end
 
--- Основной run (тот же порядок/цены, как договорились)
-local function run()
+-- основной игровой цикл (вставлен твой run из v4)
+local function runGame()
     RunService.Heartbeat:Wait()
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
     voteImpossible()
@@ -189,92 +151,103 @@ local function run()
     restarting = false
     reduceLag()
 
-    ------------------------------------------------------------------------
-    -- Electric Beetroot (первый, без доп. апгрейда 1000)
+    -- START - твои юниты и апгрейды
     waitForCash(200)
-    local beet1 = placeUnit("unit_electric_beetroot", Vector3.new(-4.406354904174805, 1.9999998807907104, 345.56976318359375), 180)
-    upgradeAtCash(beet1, {250, 500, 750})
+    local beet1 = placeUnit("unit_electric_beetroot", Vector3.new(-4.406354904174805,1.9999998807907104,345.56976318359375),180)
+    upgradeAtCash(beet1, {250,500,750})
 
-    -- Beehives
     local beehivePos = {
-        Vector3.new( 1.958890676498413, 1.9999998807907104, 315.4044494628906),
-        Vector3.new(-0.5488870739936829, 1.9999998807907104, 315.1313781738281),
-        Vector3.new(-3.08665132522583,  1.9999998807907104, 315.0760498046875),
+        Vector3.new(1.958890676498413,1.9999998807907104,315.4044494628906),
+        Vector3.new(-0.5488870739936829,1.9999998807907104,315.1313781738281),
+        Vector3.new(-3.08665132522583,1.9999998807907104,315.0760498046875),
     }
     for _, pos in ipairs(beehivePos) do
         waitForCash(2500)
         local id = placeUnit("unit_beehive", pos, 180)
-        upgradeAtCash(id, {1500, 4000, 10000, 25000})
+        upgradeAtCash(id, {1500,4000,10000,25000})
         if restarting then return end
     end
 
-    -- Hellroots (unit_dragon_head)
     local hellPos = {
-        Vector3.new(-4.420583724975586, 1.9999998807907104, 332.72015380859375),
-        Vector3.new(-3.7761306762695312, 1.9999998807907104, 336.3861999511719),
-        Vector3.new(-3.759739875793457, 1.9999998807907104, 340.1415100097656),
+        Vector3.new(-4.420583724975586,1.9999998807907104,332.72015380859375),
+        Vector3.new(-3.7761306762695312,1.9999998807907104,336.3861999511719),
+        Vector3.new(-3.759739875793457,1.9999998807907104,340.1415100097656),
     }
     for _, pos in ipairs(hellPos) do
         waitForCash(2000)
         local id = placeUnit("unit_dragon_head", pos, 180)
-        upgradeAtCash(id, {5500, 8000, 12000, 33000})
+        upgradeAtCash(id, {5500,8000,12000,33000})
         if restarting then return end
     end
 
-    -- Lucky Clover
     waitForCash(1500)
-    local lucky = placeUnit("unit_lucky_plant", Vector3.new(3.173248291015625, 1.9999998807907104, 327.088623046875), 180)
-    upgradeAtCash(lucky, {3000, 4000, 7500, 15000})
+    local lucky = placeUnit("unit_lucky_plant", Vector3.new(3.173248291015625,1.9999998807907104,327.088623046875),180)
+    upgradeAtCash(lucky, {3000,4000,7500,15000})
     if restarting then return end
 
-    -- Sprinkler
     waitForCash(600)
-    local sprinkler = placeUnit("unit_sprinkler", Vector3.new(3.552043914794922, 1.9999998807907104, 324.0252990722656), 180)
-    upgradeAtCash(sprinkler, {560, 750, 1000, 1300})
+    local sprinkler = placeUnit("unit_sprinkler", Vector3.new(3.552043914794922,1.9999998807907104,324.0252990722656),180)
+    upgradeAtCash(sprinkler, {560,750,1000,1300})
     if restarting then return end
 
-    -- Seed Mech (unit_old_machine)
     local seedPos = {
-        Vector3.new(4.49534797668457,  1.9999998807907104, 330.9710998535156),
-        Vector3.new(4.059284210205078, 1.9999998807907104, 333.3840026855469),
-        Vector3.new(4.076716423034668, 1.9999998807907104, 335.8547058105469),
-        Vector3.new(4.361018180847168, 1.9999998807907104, 337.6783142089844),
-        Vector3.new(4.022946357727051, 1.9999998807907104, 340.01507568359375),
+        Vector3.new(4.49534797668457,1.9999998807907104,330.9710998535156),
+        Vector3.new(4.059284210205078,1.9999998807907104,333.3840026855469),
+        Vector3.new(4.076716423034668,1.9999998807907104,335.8547058105469),
+        Vector3.new(4.361018180847168,1.9999998807907104,337.6783142089844),
+        Vector3.new(4.022946357727051,1.9999998807907104,340.01507568359375),
     }
     for _, pos in ipairs(seedPos) do
         waitForCash(3000)
         local id = placeUnit("unit_old_machine", pos, 180)
-        upgradeAtCash(id, {5000, 8800, 13700, 28500})
+        upgradeAtCash(id, {5000,8800,13700,28500})
         if restarting then return end
     end
 
-    -- Rosebeam
     local rosePos = {
-        Vector3.new( 4.988903999328613, 1.9999998807907104, 343.2156066894531),
-        Vector3.new(-3.931900978088379, 1.9999998807907104, 344.3135070800781),
-        Vector3.new(-4.040769577026367, 1.9999998807907104, 347.7846984863281),
+        Vector3.new(4.988903999328613,1.9999998807907104,343.2156066894531),
+        Vector3.new(-3.931900978088379,1.9999998807907104,344.3135070800781),
+        Vector3.new(-4.040769577026367,1.9999998807907104,347.7846984863281),
     }
     for _, pos in ipairs(rosePos) do
         waitForCash(12750)
         local id = placeUnit("unit_rosebeam", pos, 180)
-        upgradeAtCash(id, {8000, 14000, 30000, 57500})
+        upgradeAtCash(id, {8000,14000,30000,57500})
         if restarting then return end
     end
 
-    -- Дополнительные Electric Beetroot (с апгрейдом за 1000)
     local beetExtra = {
-        Vector3.new(4.2467041015625,   1.9999998807907104, 347.1902160644531),
-        Vector3.new(4.004511833190918, 1.9999998807907104, 349.51129150390625),
-        Vector3.new(6.94158935546875,  1.9999998807907104, 347.3568115234375),
+        Vector3.new(4.2467041015625,1.9999998807907104,347.1902160644531),
+        Vector3.new(4.004511833190918,1.9999998807907104,349.51129150390625),
+        Vector3.new(6.94158935546875,1.9999998807907104,347.3568115234375),
     }
     for _, pos in ipairs(beetExtra) do
         waitForCash(200)
         local id = placeUnit("unit_electric_beetroot", pos, 180)
-        upgradeAtCash(id, {250, 500, 750, 1000})
+        upgradeAtCash(id, {250,500,750,1000})
         if restarting then return end
     end
 
-    while not restarting do RunService.Heartbeat:Wait() end
+    -- Ждём restart
+    while not restarting do
+        RunService.Heartbeat:Wait()
+    end
 end
 
-while true do run() end
+-- цикл рестарта + запуск runGame
+while true do
+    runGame()
+    -- ждём, пока появится кнопка рестарта
+    local btn = gui:FindFirstChild("GameGui") and gui.GameGui.Screen and gui.GameGui.Screen.Middle and gui.GameGui.Screen.Middle.GameEnd
+                and gui.GameGui.Screen.Middle.GameEnd.Items and gui.GameGui.Screen.Middle.GameEnd.Items.Frame
+                and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items
+                and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
+    if btn then
+        restarting = true
+        ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
+    end
+    -- затем ждём окно выбора и выбираем сложность
+    voteImpossible()
+    -- даём время на перезагрузку карты
+    waitForCashSystem()
+end
