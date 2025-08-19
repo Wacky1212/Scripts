@@ -1,4 +1,4 @@
--- 🌱 Full Stable Auto-Script vFinal + твои юниты
+-- 🌱 Full Stable Auto-Script vFinal + фикс зависания апгрейдов
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -11,15 +11,18 @@ local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 local cash
 local restarting = false
 
--- 💰 Парсер денег
+-- 💰 Парсер денег (усилен: $, пробелы, k/m/b/t и т.п.)
 local function parseCash(val)
-    val = tostring(val or "0"):gsub(",", ""):lower()
-    val = val:match("[0-9%.]*k?") or "0"
-    if val:find("k") then
-        local numberPart = tonumber(val:gsub("k", ""))
-        return numberPart and numberPart * 1000 or 0
-    end
-    return tonumber(val) or 0
+    local t = typeof(val)
+    if t == "number" then return val end
+    val = tostring(val or "0"):lower()
+    -- убираем пробелы, запятые и любые «мусорные» символы вокруг
+    val = val:gsub(",", ""):gsub("%s+", "")
+    -- ищем первое число + суффикс (k/m/b/t), не важно где в строке
+    local num, suf = val:match("([%d%.]+)([kmbt]?)")
+    local n = tonumber(num) or 0
+    local mult = ({k=1e3, m=1e6, b=1e9, t=1e12})[suf] or 1
+    return n * mult
 end
 
 -- Ждём появления лидерстатсов
@@ -28,34 +31,41 @@ local function waitForCashSystem()
     cash = player.leaderstats.Cash
 end
 
--- Ждём пока накопится сумма
-local function waitForCash(amount)
-    repeat RunService.Heartbeat:Wait() until parseCash(cash and cash.Value) >= amount or restarting
+-- Текущее число денег
+local function currentCash()
+    return parseCash(cash and cash.Value)
 end
 
--- Ставим юнит (устойчиво)
+-- Ждём пока накопится сумма
+local function waitForCash(amount)
+    repeat RunService.Heartbeat:Wait() until currentCash() >= amount or restarting
+end
+
+-- Ставим юнит (устойчиво: snapshot до/после, берём новый объект)
 local function placeUnit(unitName, pos, rotation)
+    local before = {}
+    for _, v in pairs(entityFolder:GetChildren()) do
+        before[v] = true
+    end
+
     local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(rotation or 180), 0)
     ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
         Valid = true, Position = pos, CF = cf, Rotation = rotation or 180
     })
 
-    -- ждём появления ID
-    local newUnit = nil
-    for i = 1, 30 do -- ~1 сек
+    -- ждём появления именно нового юнита с ID
+    for _ = 1, 60 do -- ~2 сек
         RunService.Heartbeat:Wait()
         for _, v in pairs(entityFolder:GetChildren()) do
-            if v:IsA("Model") then
+            if not before[v] and v:IsA("Model") then
                 local id = v:GetAttribute("ID")
-                if id and not newUnit then
-                    newUnit = id
-                    break
+                if id then
+                    return id
                 end
             end
         end
-        if newUnit then break end
     end
-    return newUnit
+    return nil
 end
 
 -- Апгрейд при нужном кэше (устойчиво)
