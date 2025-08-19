@@ -1,4 +1,4 @@
--- 🌱 v5: твои юниты + нормальный авто‑рестарт
+-- 🌱 Full Stable Auto-Script vFinal + твои юниты
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -6,8 +6,8 @@ local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
-local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 
+local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 local cash
 local restarting = false
 
@@ -33,31 +33,41 @@ local function waitForCash(amount)
     repeat RunService.Heartbeat:Wait() until parseCash(cash and cash.Value) >= amount or restarting
 end
 
--- Ставим юнит
+-- Ставим юнит (устойчиво)
 local function placeUnit(unitName, pos, rotation)
-    local before = {}
-    for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
     local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(rotation or 180), 0)
     ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
         Valid = true, Position = pos, CF = cf, Rotation = rotation or 180
     })
-    for _ = 1, 50 do
+
+    -- ждём появления ID
+    local newUnit = nil
+    for i = 1, 30 do -- ~1 сек
         RunService.Heartbeat:Wait()
         for _, v in pairs(entityFolder:GetChildren()) do
-            if not before[v] and v:IsA("Model") and v:GetAttribute("ID") then
-                return v:GetAttribute("ID")
+            if v:IsA("Model") then
+                local id = v:GetAttribute("ID")
+                if id and not newUnit then
+                    newUnit = id
+                    break
+                end
             end
         end
+        if newUnit then break end
     end
-    return nil
+    return newUnit
 end
 
--- Апгрейд при нужном кэше
+-- Апгрейд при нужном кэше (устойчиво)
 local function upgradeAtCash(unitId, costs)
+    if not unitId then return end
     for _, cost in ipairs(costs) do
         waitForCash(cost)
         if restarting then return end
-        ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
+        pcall(function()
+            ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
+        end)
+        task.wait(0.5) -- пауза между апгрейдами
     end
 end
 
@@ -123,8 +133,9 @@ local function run()
     reduceLag()
     voteImpossible()
 
-    ------------------------------------------------------------------
-    -- Electric Beetroot (первый, без апгрейда 1000)
+    -- ⚔️ Твои юниты и апгрейды
+
+    -- Electric Beetroot (первый)
     waitForCash(200)
     if restarting then return end
     local beet1 = placeUnit("unit_electric_beetroot", Vector3.new(-4.4063549, 2, 345.56976), 180)
@@ -196,7 +207,7 @@ local function run()
         if restarting then return end
     end
 
-    -- Дополнительные Electric Beetroot (с апгрейдом за 1000)
+    -- Дополнительные Electric Beetroot
     local beetExtra = {
         Vector3.new(4.246704, 2, 347.19022),
         Vector3.new(4.004512, 2, 349.5113),
@@ -209,6 +220,7 @@ local function run()
         if restarting then return end
     end
 
+    -- 🔁 Ждём рестарт
     while not restarting do RunService.Heartbeat:Wait() end
 end
 
