@@ -1,4 +1,4 @@
--- 🔁 АВТО-СКРИПТ: захват ID ближайшей новой модели после плейсмента
+-- 🔁 АВТО-СКРИПТ: более строгий выбор 'unit_' моделей после плейсмента
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -11,7 +11,7 @@ local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 local cash
 local restarting = false
 
--- 💰 Парсинг денег
+-- Парсинг денег
 local function parseCash(val)
     val = tostring(val or "0"):gsub(",", ""):lower()
     val = val:match("[0-9%.]*k?") or "0"
@@ -33,7 +33,7 @@ local function waitForCash(amount)
     until parseCash(cash and cash.Value) >= amount or restarting
 end
 
--- 🔧 утилита: позиция модели (pivot -> любая BasePart)
+-- Получение позиции модели (pivot или любая BasePart)
 local function modelPos(m)
     if not (m and m:IsA("Model")) then return nil end
     local ok, cf = pcall(function() return m:GetPivot() end)
@@ -42,55 +42,81 @@ local function modelPos(m)
     return part and part.Position or nil
 end
 
--- 📦 плейс юнита + выбор ближайшей новой модели к точке pos
+-- placeUnit: теперь фильтруем только 'unit_' модели и даём приоритет тем, где ID/Name содержит unitName
 local function placeUnit(unitName, pos, rotation)
     local before = {}
     for _, v in ipairs(entityFolder:GetChildren()) do before[v] = true end
 
-    local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(rotation or 180), 0) -- как в твоём основе
+    local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(rotation or 180), 0)
     ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
         Valid = true, Position = pos, CF = cf, Rotation = rotation or 180
     })
 
-    local bestId, bestDist = nil, math.huge
+    local candidates = {}
+    local bestId = nil
+    local bestScore = math.huge
 
-    -- до ~3 секунд ловим новые модели и выбираем ближайшую
-    for _ = 1, 180 do
+    -- собираем кандидатов до ~4 секунд
+    for _ = 1, 240 do
         RunService.Heartbeat:Wait()
         for _, v in ipairs(entityFolder:GetChildren()) do
             if not before[v] and v:IsA("Model") then
                 local id = v:GetAttribute("ID")
-                if id then
+                local name = v.Name or ""
+                -- рассматриваем только объекты, явно похожие на юнит: id или name начинаются с "unit_"
+                local idIsUnit = (type(id) == "string" and id:match("^unit_"))
+                local nameIsUnit = (type(name) == "string" and name:match("^unit_"))
+                if idIsUnit or nameIsUnit then
                     local p = modelPos(v)
-                    if p then
-                        local d = (p - pos).Magnitude
-                        if d < bestDist then
-                            bestDist, bestId = d, id
-                            if bestDist <= 8 then
-                                -- достаточно близко, можно не тянуть время
-                                return bestId
-                            end
-                        end
-                    elseif not bestId then
-                        -- если позицию не смогли взять — всё равно запоминаем ID как резерв
+                    local d = p and (p - pos).Magnitude or 9999
+                    local containsUnitName = false
+                    if type(id) == "string" and id:find(unitName, 1, true) then containsUnitName = true end
+                    if not containsUnitName and type(name) == "string" and name:find(unitName, 1, true) then containsUnitName = true end
+                    -- score: ближе — лучше; если содержит unitName — огромный бонус (приоритет)
+                    local score = d + (containsUnitName and 0 or 1000)
+                    if score < bestScore then
+                        bestScore = score
                         bestId = id
+                    end
+                    -- если нашли очень близкий и с совпадением имени — возвращаем сразу
+                    if containsUnitName and d <= 8 and id then
+                        return id
                     end
                 end
             end
         end
-        if bestId and bestDist < math.huge then
-            -- нашли кандидата — можно выходить чуть раньше, чтобы не задерживать апгрейды
+        -- если нашли кандидата с ID — можно вернуть его раньше
+        if bestId and type(bestId) == "string" then
             return bestId
         end
     end
-    return bestId
+
+    -- последний шанс: если есть модель-кандидат без ID, попробуем дождаться ID у неё (по имени nearest)
+    -- проходим ещё раз и пытаемся получить ID у самых близких unit_ моделей
+    for _, v in ipairs(entityFolder:GetChildren()) do
+        if not before[v] and v:IsA("Model") then
+            local name = v.Name or ""
+            if name:match("^unit_") then
+                for _ = 1, 120 do
+                    RunService.Heartbeat:Wait()
+                    local id = v:GetAttribute("ID")
+                    if id and type(id) == "string" and id:match("^unit_") then
+                        return id
+                    end
+                end
+            end
+        end
+    end
+
+    return nil
 end
 
--- ⬆️ Апгрейды
+-- Апгрейды (короткая пауза + увеличенное ожидание перед апгрейдом)
 local function upgradeAtCash(unitId, costs)
     if not unitId then return end
-    -- короткая пауза после плейсмента — чтобы сервер инициализировал статы
     RunService.Heartbeat:Wait()
+    RunService.Heartbeat:Wait()
+    RunService.Heartbeat:Wait() -- чуть больше уверенности
     for _, cost in ipairs(costs) do
         waitForCash(cost)
         if restarting then return end
@@ -99,7 +125,7 @@ local function upgradeAtCash(unitId, costs)
     end
 end
 
--- 📊 Голосование Impossible
+-- Голосование Impossible
 local function voteImpossible()
     task.spawn(function()
         while true do
@@ -116,7 +142,7 @@ local function voteImpossible()
     end)
 end
 
--- 🔁 Авто-рестарт
+-- Авто-рестарт
 task.spawn(function()
     while true do
         RunService.Heartbeat:Wait()
@@ -136,7 +162,7 @@ task.spawn(function()
     end
 end)
 
--- 🌀 Анти-лаг
+-- Анти-лаг
 local function reduceLag()
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
@@ -154,7 +180,7 @@ local function reduceLag()
     Lighting.FogEnd = 999999
 end
 
--- 🚀 Основной ран
+-- Основной run (тот же порядок/цены, как договорились)
 local function run()
     RunService.Heartbeat:Wait()
     ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
@@ -164,12 +190,12 @@ local function run()
     reduceLag()
 
     ------------------------------------------------------------------------
-    -- 🥬 Electric Beetroot (первый, БЕЗ апгрейда за 1000)
+    -- Electric Beetroot (первый, без доп. апгрейда 1000)
     waitForCash(200)
     local beet1 = placeUnit("unit_electric_beetroot", Vector3.new(-4.406354904174805, 1.9999998807907104, 345.56976318359375), 180)
     upgradeAtCash(beet1, {250, 500, 750})
 
-    -- 🐝 Beehives
+    -- Beehives
     local beehivePos = {
         Vector3.new( 1.958890676498413, 1.9999998807907104, 315.4044494628906),
         Vector3.new(-0.5488870739936829, 1.9999998807907104, 315.1313781738281),
@@ -182,7 +208,7 @@ local function run()
         if restarting then return end
     end
 
-    -- 🔥 Hellroots (unit_dragon_head)
+    -- Hellroots (unit_dragon_head)
     local hellPos = {
         Vector3.new(-4.420583724975586, 1.9999998807907104, 332.72015380859375),
         Vector3.new(-3.7761306762695312, 1.9999998807907104, 336.3861999511719),
@@ -195,19 +221,19 @@ local function run()
         if restarting then return end
     end
 
-    -- 🍀 Lucky Clover
+    -- Lucky Clover
     waitForCash(1500)
     local lucky = placeUnit("unit_lucky_plant", Vector3.new(3.173248291015625, 1.9999998807907104, 327.088623046875), 180)
     upgradeAtCash(lucky, {3000, 4000, 7500, 15000})
     if restarting then return end
 
-    -- 💧 Sprinkler
+    -- Sprinkler
     waitForCash(600)
     local sprinkler = placeUnit("unit_sprinkler", Vector3.new(3.552043914794922, 1.9999998807907104, 324.0252990722656), 180)
     upgradeAtCash(sprinkler, {560, 750, 1000, 1300})
     if restarting then return end
 
-    -- ⚙️ Seed Mech (unit_old_machine)
+    -- Seed Mech (unit_old_machine)
     local seedPos = {
         Vector3.new(4.49534797668457,  1.9999998807907104, 330.9710998535156),
         Vector3.new(4.059284210205078, 1.9999998807907104, 333.3840026855469),
@@ -222,7 +248,7 @@ local function run()
         if restarting then return end
     end
 
-    -- 🌹 Rosebeam
+    -- Rosebeam
     local rosePos = {
         Vector3.new( 4.988903999328613, 1.9999998807907104, 343.2156066894531),
         Vector3.new(-3.931900978088379, 1.9999998807907104, 344.3135070800781),
@@ -235,7 +261,7 @@ local function run()
         if restarting then return end
     end
 
-    -- ⚡ Доп. Electric Beetroot (с апгрейдом за 1000)
+    -- Дополнительные Electric Beetroot (с апгрейдом за 1000)
     local beetExtra = {
         Vector3.new(4.2467041015625,   1.9999998807907104, 347.1902160644531),
         Vector3.new(4.004511833190918, 1.9999998807907104, 349.51129150390625),
