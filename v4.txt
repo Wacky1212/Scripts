@@ -13,7 +13,7 @@ local cash
 local restarting = true                 -- сигнал завершить текущий цикл run()
 local last_restart = 0                  -- время последнего рестарта (time())
 local RESTART_DEBOUNCE = 1              -- дебаунс после рестарта (сек)
-local suppressWatcherUntil = 0          -- до этого времени авто-рес. наблюдатель игнорирует кнопку Again
+local watcherLocked = false             -- блокируем вотчер после клика по Again до старта новой катки
 
 -- После рестарта Map переcоздаётся → нельзя кэшировать Entities один раз.
 local function getEntityFolder()
@@ -152,20 +152,16 @@ local function voteImpossible()
     end)
 end
 
--- Авто-рестарт: жмём 'Again' и мягко перезапускаем цикл
--- ВАЖНО: наблюдатель подавляется на 1 секунду после рестарта, чтобы не дёргать повторно,
--- и не сбивать начало новой катки (иначе всё может залипать на выборе сложности).
-
-local function tryAutoRestart()
-    -- см. watcher ниже
-end
+-- Авто-рестарт: жмём 'Again' и МГНОВЕННО перезапускаем цикл
+-- ВАЖНО: после нажатия 'Again' мы ЛОКАПИМ вотчер (watcherLocked = true),
+-- чтобы он не спамил ещё рестартами, пока не начнётся новая катка. Разлочим его в начале run().
 
 task.spawn(function()
     while true do
         RunService.Heartbeat:Wait()
 
-        -- подавление на короткое время после рестарта
-        if time() < suppressWatcherUntil then
+        if watcherLocked then
+            -- ждём, пока run() нас не разлочит после старта новой катки
             continue
         end
 
@@ -182,9 +178,11 @@ task.spawn(function()
         if btn and btn.Visible then
             if time() - last_restart >= RESTART_DEBOUNCE then
                 restarting = true
+                watcherLocked = true
                 last_restart = time()
-                suppressWatcherUntil = last_restart + RESTART_DEBOUNCE
                 ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
+                task.wait(1) -- короткая задержка по твоей просьбе (1 сек)
+                -- далее ничего не делаем: run() сам вернётся и перезапустится в основном цикле
             end
         end
     end
@@ -212,15 +210,15 @@ end
 local function run()
     RunService.Heartbeat:Wait()
 
-    -- ⚠️ БОЛЬШОЕ ИЗМЕНЕНИЕ: больше НЕ вызываем RestartGame здесь автоматически.
-    -- Рестарт инициируется только в вотчере по появлению окна GameEnd→Again.
-    -- Это убирает гонку состояний и зависание на выборе сложности.
+    -- ⚠️ НЕ вызываем RestartGame здесь. Рестарт делает вотчер.
 
     voteImpossible()
     waitForCashSystem()
 
-    -- после инициализации экономики и голосования, снимаем флаг рестарта
+    -- новая катка стартует → снимаем флаги рестарта/локапа вотчера
     restarting = false
+    watcherLocked = false
+
     reduceLag()
 
     ------------------------------------------------------------------------
