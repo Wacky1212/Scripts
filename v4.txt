@@ -1,15 +1,25 @@
--- 🔁 АВТО-СКРИПТ: более строгий выбор 'unit_' моделей после плейсмента
+-- 🔁 АВТО-СКРИПТ: более строгий выбор 'unit_' моделей после плейсмента + устойчивый авто-RESTART
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
+
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
-local entityFolder = workspace:WaitForChild("Map"):WaitForChild("Entities")
 
+-- ДЕНЬГИ / СОСТОЯНИЕ
 local cash
-local restarting = true
+local restarting = true                 -- сигнал завершить текущий цикл run()
+local last_restart = 0                  -- время последнего рестарта (time())
+local RESTART_DEBOUNCE = 1              -- дебаунс после рестарта (сек)
+local suppressWatcherUntil = 0          -- до этого времени авто-рес. наблюдатель игнорирует кнопку Again
+
+-- После рестарта Map переcоздаётся → нельзя кэшировать Entities один раз.
+local function getEntityFolder()
+    local map = workspace:FindFirstChild("Map") or workspace:WaitForChild("Map")
+    return map:WaitForChild("Entities")
+end
 
 -- Парсинг денег
 local function parseCash(val)
@@ -42,8 +52,10 @@ local function modelPos(m)
     return part and part.Position or nil
 end
 
--- placeUnit: теперь фильтруем только 'unit_' модели и даём приоритет тем, где ID/Name содержит unitName
+-- placeUnit: фильтруем только 'unit_' модели и даём приоритет тем, где ID/Name содержит unitName
 local function placeUnit(unitName, pos, rotation)
+    local entityFolder = getEntityFolder()
+
     local before = {}
     for _, v in ipairs(entityFolder:GetChildren()) do before[v] = true end
 
@@ -52,18 +64,19 @@ local function placeUnit(unitName, pos, rotation)
         Valid = true, Position = pos, CF = cf, Rotation = rotation or 180
     })
 
-    local candidates = {}
     local bestId = nil
     local bestScore = math.huge
 
-    -- собираем кандидатов до ~4 секунд
+    -- собираем кандидатов до ~4 секунд (240 Heartbeat)
     for _ = 1, 240 do
         RunService.Heartbeat:Wait()
+        -- обновляем ссылку на Entities на всякий случай (карта могла смениться)
+        entityFolder = getEntityFolder()
+
         for _, v in ipairs(entityFolder:GetChildren()) do
             if not before[v] and v:IsA("Model") then
                 local id = v:GetAttribute("ID")
                 local name = v.Name or ""
-                -- рассматриваем только объекты, явно похожие на юнит: id или name начинаются с "unit_"
                 local idIsUnit = (type(id) == "string" and id:match("^unit_"))
                 local nameIsUnit = (type(name) == "string" and name:match("^unit_"))
                 if idIsUnit or nameIsUnit then
@@ -72,27 +85,24 @@ local function placeUnit(unitName, pos, rotation)
                     local containsUnitName = false
                     if type(id) == "string" and id:find(unitName, 1, true) then containsUnitName = true end
                     if not containsUnitName and type(name) == "string" and name:find(unitName, 1, true) then containsUnitName = true end
-                    -- score: ближе — лучше; если содержит unitName — огромный бонус (приоритет)
                     local score = d + (containsUnitName and 0 or 1000)
                     if score < bestScore then
                         bestScore = score
                         bestId = id
                     end
-                    -- если нашли очень близкий и с совпадением имени — возвращаем сразу
                     if containsUnitName and d <= 8 and id then
                         return id
                     end
                 end
             end
         end
-        -- если нашли кандидата с ID — можно вернуть его раньше
         if bestId and type(bestId) == "string" then
             return bestId
         end
     end
 
-    -- последний шанс: если есть модель-кандидат без ID, попробуем дождаться ID у неё (по имени nearest)
-    -- проходим ещё раз и пытаемся получить ID у самых близких unit_ моделей
+    -- последний шанс: ждём появления ID на ближайших unit_ моделях
+    entityFolder = getEntityFolder()
     for _, v in ipairs(entityFolder:GetChildren()) do
         if not before[v] and v:IsA("Model") then
             local name = v.Name or ""
@@ -125,7 +135,7 @@ local function upgradeAtCash(unitId, costs)
     end
 end
 
--- Голосование Impossible
+-- Голосование Impossible (повторяет попытку, пока окно реально видно)
 local function voteImpossible()
     task.spawn(function()
         while true do
@@ -142,10 +152,23 @@ local function voteImpossible()
     end)
 end
 
--- Авто-рестарт
+-- Авто-рестарт: жмём 'Again' и мягко перезапускаем цикл
+-- ВАЖНО: наблюдатель подавляется на 1 секунду после рестарта, чтобы не дёргать повторно,
+-- и не сбивать начало новой катки (иначе всё может залипать на выборе сложности).
+
+local function tryAutoRestart()
+    -- см. watcher ниже
+end
+
 task.spawn(function()
     while true do
         RunService.Heartbeat:Wait()
+
+        -- подавление на короткое время после рестарта
+        if time() < suppressWatcherUntil then
+            continue
+        end
+
         local btn = gui:FindFirstChild("GameGui")
             and gui.GameGui.Screen
             and gui.GameGui.Screen.Middle
@@ -155,9 +178,14 @@ task.spawn(function()
             and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions
             and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items
             and gui.GameGui.Screen.Middle.GameEnd.Items.Frame.Actions.Items:FindFirstChild("Again")
+
         if btn and btn.Visible then
-            restarting = true
-            ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
+            if time() - last_restart >= RESTART_DEBOUNCE then
+                restarting = true
+                last_restart = time()
+                suppressWatcherUntil = last_restart + RESTART_DEBOUNCE
+                ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
+            end
         end
     end
 end)
@@ -180,12 +208,18 @@ local function reduceLag()
     Lighting.FogEnd = 999999
 end
 
--- Основной run (тот же порядок/цены, как договорились)
+-- Основной run (тот же порядок/цены)
 local function run()
     RunService.Heartbeat:Wait()
-    ReplicatedStorage.RemoteFunctions.RestartGame:InvokeServer()
+
+    -- ⚠️ БОЛЬШОЕ ИЗМЕНЕНИЕ: больше НЕ вызываем RestartGame здесь автоматически.
+    -- Рестарт инициируется только в вотчере по появлению окна GameEnd→Again.
+    -- Это убирает гонку состояний и зависание на выборе сложности.
+
     voteImpossible()
     waitForCashSystem()
+
+    -- после инициализации экономики и голосования, снимаем флаг рестарта
     restarting = false
     reduceLag()
 
@@ -274,7 +308,11 @@ local function run()
         if restarting then return end
     end
 
+    -- ждём до конца, пока не попросили рестарт
     while not restarting do RunService.Heartbeat:Wait() end
 end
 
-while true do run() end
+-- Бесконечный цикл
+while true do
+    run()
+end
