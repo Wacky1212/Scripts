@@ -1,4 +1,4 @@
--- 🔁 АВТО-СКРИПТ С НОВЫМИ ЮНИТАМИ
+-- 🔁 АВТО-СКРИПТ С НОВЫМИ ЮНИТАМИ (фикс CF и микро-пауза перед апгрейдами)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -33,31 +33,52 @@ local function waitForCash(amount)
     until parseCash(cash and cash.Value) >= amount or restarting
 end
 
--- 📦 Плейс юнита
+-- 📦 CF как в SimpleSpy для Rotation=180: Angles(-π, 0, -π)
+local function makeCF(pos, rotation)
+    rotation = rotation or 180
+    if rotation == 180 then
+        return CFrame.new(pos) * CFrame.Angles(-math.pi, 0, -math.pi)
+    else
+        return CFrame.new(pos) * CFrame.Angles(0, math.rad(rotation), 0)
+    end
+end
+
+-- 📦 Плейс юнита (возвращает ID)
 local function placeUnit(unitName, pos, rotation)
     local before = {}
     for _, v in pairs(entityFolder:GetChildren()) do before[v] = true end
-    local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(rotation or 180), 0)
+
+    local cf = makeCF(pos, rotation)
     ReplicatedStorage.RemoteFunctions.PlaceUnit:InvokeServer(unitName, {
         Valid = true, Position = pos, CF = cf, Rotation = rotation or 180
     })
-    for _ = 1, 50 do
+
+    -- Ждём появления нового Model с атрибутом ID
+    for _ = 1, 100 do
         RunService.Heartbeat:Wait()
         for _, v in pairs(entityFolder:GetChildren()) do
-            if not before[v] and v:IsA("Model") and v:GetAttribute("ID") then
-                return v:GetAttribute("ID")
+            if not before[v] and v:IsA("Model") then
+                local id = v:GetAttribute("ID")
+                if id then
+                    return id
+                end
             end
         end
     end
     return nil
 end
 
--- ⬆️ Апгрейды
+-- ⬆️ Апгрейды (с микро-паузой перед первым апгрейдом)
 local function upgradeAtCash(unitId, costs)
+    if not unitId then return end
+    -- микро-пауза после плейсмента (важно для первого юнита)
+    RunService.Heartbeat:Wait()
+    RunService.Heartbeat:Wait()
     for _, cost in ipairs(costs) do
         waitForCash(cost)
         if restarting then return end
         ReplicatedStorage.RemoteFunctions.UpgradeUnit:InvokeServer(unitId)
+        RunService.Heartbeat:Wait()
     end
 end
 
@@ -128,85 +149,86 @@ local function run()
     ------------------------------------------------------------------------
     -- 🥬 Electric Beetroot (первый, без апгрейда за 1000)
     waitForCash(200)
-    local beet1 = placeUnit("unit_electric_beetroot", Vector3.new(-4.4064, 2, 345.5698), 180)
-    if beet1 then upgradeAtCash(beet1, {250, 500, 750}) end
+    local beet1pos = Vector3.new(-4.406354904174805, 1.9999998807907104, 345.56976318359375)
+    local beet1 = placeUnit("unit_electric_beetroot", beet1pos, 180)
+    upgradeAtCash(beet1, {250, 500, 750})
 
     -- 🐝 Beehives
     local beehivePos = {
-        Vector3.new(1.9589, 2, 315.4044),
-        Vector3.new(-0.5489, 2, 315.1314),
-        Vector3.new(-3.0867, 2, 315.0760),
+        Vector3.new( 1.958890676498413, 1.9999998807907104, 315.4044494628906),
+        Vector3.new(-0.5488870739936829, 1.9999998807907104, 315.1313781738281),
+        Vector3.new(-3.08665132522583,  1.9999998807907104, 315.0760498046875),
     }
     for _, pos in ipairs(beehivePos) do
         waitForCash(2500)
         local id = placeUnit("unit_beehive", pos, 180)
-        if id then upgradeAtCash(id, {1500, 4000, 10000, 25000}) end
+        upgradeAtCash(id, {1500, 4000, 10000, 25000})
         if restarting then return end
     end
 
-    -- 🔥 Hellroots
+    -- 🔥 Hellroots (unit_dragon_head)
     local hellPos = {
-        Vector3.new(-4.4206, 2, 332.7202),
-        Vector3.new(-3.7761, 2, 336.3862),
-        Vector3.new(-3.7597, 2, 340.1415),
+        Vector3.new(-4.420583724975586, 1.9999998807907104, 332.72015380859375),
+        Vector3.new(-3.7761306762695312, 1.9999998807907104, 336.3861999511719),
+        Vector3.new(-3.759739875793457, 1.9999998807907104, 340.1415100097656),
     }
     for _, pos in ipairs(hellPos) do
         waitForCash(2000)
         local id = placeUnit("unit_dragon_head", pos, 180)
-        if id then upgradeAtCash(id, {5500, 8000, 12000, 33000}) end
+        upgradeAtCash(id, {5500, 8000, 12000, 33000})
         if restarting then return end
     end
 
-    -- 🍀 Lucky Clover
+    -- 🍀 Lucky Clover (unit_lucky_plant)
     waitForCash(1500)
-    local lucky = placeUnit("unit_lucky_plant", Vector3.new(3.1732, 2, 327.0886), 180)
-    if lucky then upgradeAtCash(lucky, {3000, 4000, 7500, 15000}) end
+    local lucky = placeUnit("unit_lucky_plant", Vector3.new(3.173248291015625, 1.9999998807907104, 327.088623046875), 180)
+    upgradeAtCash(lucky, {3000, 4000, 7500, 15000})
     if restarting then return end
 
     -- 💧 Sprinkler
     waitForCash(600)
-    local sprinkler = placeUnit("unit_sprinkler", Vector3.new(3.5520, 2, 324.0253), 180)
-    if sprinkler then upgradeAtCash(sprinkler, {560, 750, 1000, 1300}) end
+    local sprinkler = placeUnit("unit_sprinkler", Vector3.new(3.552043914794922, 1.9999998807907104, 324.0252990722656), 180)
+    upgradeAtCash(sprinkler, {560, 750, 1000, 1300})
     if restarting then return end
 
-    -- ⚙️ Seed Mech (Old Machine)
+    -- ⚙️ Seed Mech (unit_old_machine)
     local seedPos = {
-        Vector3.new(4.4953, 2, 330.9711),
-        Vector3.new(4.0593, 2, 333.3840),
-        Vector3.new(4.0767, 2, 335.8547),
-        Vector3.new(4.3610, 2, 337.6783),
-        Vector3.new(4.0229, 2, 340.0151),
+        Vector3.new(4.49534797668457,  1.9999998807907104, 330.9710998535156),
+        Vector3.new(4.059284210205078, 1.9999998807907104, 333.3840026855469),
+        Vector3.new(4.076716423034668, 1.9999998807907104, 335.8547058105469),
+        Vector3.new(4.361018180847168, 1.9999998807907104, 337.6783142089844),
+        Vector3.new(4.022946357727051, 1.9999998807907104, 340.01507568359375),
     }
     for _, pos in ipairs(seedPos) do
         waitForCash(3000)
         local id = placeUnit("unit_old_machine", pos, 180)
-        if id then upgradeAtCash(id, {5000, 8800, 13700, 28500}) end
+        upgradeAtCash(id, {5000, 8800, 13700, 28500})
         if restarting then return end
     end
 
     -- 🌹 Rosebeam
     local rosePos = {
-        Vector3.new(4.9889, 2, 343.2156),
-        Vector3.new(-3.9319, 2, 344.3135),
-        Vector3.new(-4.0408, 2, 347.7847),
+        Vector3.new( 4.988903999328613, 1.9999998807907104, 343.2156066894531),
+        Vector3.new(-3.931900978088379, 1.9999998807907104, 344.3135070800781),
+        Vector3.new(-4.040769577026367, 1.9999998807907104, 347.7846984863281),
     }
     for _, pos in ipairs(rosePos) do
         waitForCash(12750)
         local id = placeUnit("unit_rosebeam", pos, 180)
-        if id then upgradeAtCash(id, {8000, 14000, 30000, 57500}) end
+        upgradeAtCash(id, {8000, 14000, 30000, 57500})
         if restarting then return end
     end
 
-    -- ⚡ Дополнительные Electric Beetroot (с апгрейдом за 1000)
+    -- ⚡ Дополнительные Electric Beetroot (с доп. апгрейдом за 1000)
     local beetExtra = {
-        Vector3.new(4.2467, 2, 347.1902),
-        Vector3.new(4.0045, 2, 349.5113),
-        Vector3.new(6.9416, 2, 347.3568),
+        Vector3.new(4.2467041015625,   1.9999998807907104, 347.1902160644531),
+        Vector3.new(4.004511833190918, 1.9999998807907104, 349.51129150390625),
+        Vector3.new(6.94158935546875,  1.9999998807907104, 347.3568115234375),
     }
     for _, pos in ipairs(beetExtra) do
         waitForCash(200)
         local id = placeUnit("unit_electric_beetroot", pos, 180)
-        if id then upgradeAtCash(id, {250, 500, 750, 1000}) end
+        upgradeAtCash(id, {250, 500, 750, 1000})
         if restarting then return end
     end
 
